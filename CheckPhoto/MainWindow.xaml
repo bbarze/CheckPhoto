@@ -1,0 +1,22 @@
+﻿<Window x:Class="CheckPhoto.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CheckPhoto"
+        mc:Ignorable="d"
+        Title="CheckPhoto" Height="150" Width="800" Closing="Window_Closing" Icon="comparing-2 - Copy.png">
+    <StackPanel>
+        <StackPanel>
+            <WrapPanel>
+                <TextBlock Margin="5" Text="Cartella foto da controllare" Width="150" />
+                <TextBox Margin="5" x:Name="tbSource" Width="500"/>
+            </WrapPanel>
+            <WrapPanel>
+                <TextBlock Margin="5" Text="Cartella foto" Width="150"/>
+                <TextBox Margin="5" x:Name="tbTarget" Width="500"/>
+            </WrapPanel>
+            <Button Margin="5" x:Name="btnCheck" Content="Check" Click="btnCheck_Click"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

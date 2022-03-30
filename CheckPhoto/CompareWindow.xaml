@@ -1,0 +1,32 @@
+﻿<Window x:Class="CheckPhoto.CompareWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CheckPhoto"
+        mc:Ignorable="d"
+        Title="CompareWindow" Height="450" Width="800" WindowState="Maximized" Icon="comparing-2 - Copy.png">
+    <StackPanel>
+        <WrapPanel HorizontalAlignment="Center">
+            <StackPanel Margin="20">
+                <TextBlock Text="NEW" HorizontalAlignment="Center"/>
+                <Image Width="300" x:Name="iNew" HorizontalAlignment="Center"/>
+                <TextBox x:Name="tbNewPath"/>
+                <TextBlock x:Name="tbNewSize"/>
+                <TextBlock x:Name="tbNewInfo"/>
+            </StackPanel>
+            <StackPanel Margin="20">
+                <TextBlock Text="OLD" HorizontalAlignment="Center"/>
+                <Image Width="300" x:Name="iOld" HorizontalAlignment="Center"/>
+                <TextBox x:Name="tbOldPath"/>
+                <TextBlock x:Name="tbOldSize"/>
+                <TextBlock x:Name="tbOldInfo"/>
+            </StackPanel>
+        </WrapPanel>
+        <TextBlock x:Name="tbSimilarity" HorizontalAlignment="Center"/>
+        <WrapPanel HorizontalAlignment="Center">
+            <Button Margin="10" x:Name="btnEquals" Content="Uguali" Height="30" Width="80" Click="Equals_Click"/>
+            <Button Margin="10" x:Name="btnNotEquals" Content="Non Uguali" Height="30" Width="80" Click="NotEquals_Click"/>
+        </WrapPanel>
+    </StackPanel>
+</Window>
