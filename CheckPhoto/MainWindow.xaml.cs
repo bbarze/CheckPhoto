@@ -22,11 +22,39 @@ using System.Windows.Shapes;
 namespace CheckPhoto
 {
     /// <summary>
+    /// Redirect console output to TextBox
+    /// </summary>
+    public class ControlWriter : TextWriter
+    {
+        private TextBox textbox;
+        public ControlWriter(TextBox tb)
+        {
+            this.textbox = tb;
+        }
+
+        public override void Write(char value)
+        {
+            textbox.Text += value;
+            textbox.ScrollToEnd();
+        }
+
+        public override void Write(string value)
+        {
+            textbox.Text += value;
+            textbox.ScrollToEnd();
+        }
+
+        public override Encoding Encoding
+        {
+            get { return Encoding.ASCII; }
+        }
+    }
+
+    /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window
     {
-
         /// <summary>
         /// Calculate the SHA256 of the file passed
         /// </summary>
@@ -110,11 +138,21 @@ namespace CheckPhoto
         {
             InitializeComponent();
 
-            String pathSource = ConfigurationManager.AppSettings["pathSourceNewPhoto"];
-            tbSource.Text = pathSource;
+            try
+            {
+                String pathSource = ConfigurationManager.AppSettings["pathSourceNewPhoto"];
+                tbSource.Text = pathSource;
 
-            String pathTarget = ConfigurationManager.AppSettings["pathSourceAlbumPhoto"];
-            tbTarget.Text = pathTarget;
+                String pathTarget = ConfigurationManager.AppSettings["pathSourceAlbumPhoto"];
+                tbTarget.Text = pathTarget;
+
+                //TODO Console.SetOut(new ControlWriter(tbLog)); must be done thread safe...
+
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+            }
         }
 
         /// <summary>

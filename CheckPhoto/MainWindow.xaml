@@ -6,8 +6,13 @@
         xmlns:local="clr-namespace:CheckPhoto"
         mc:Ignorable="d"
         Title="CheckPhoto" Height="150" Width="800" Closing="Window_Closing" Icon="comparing-2 - Copy.png">
-    <StackPanel>
-        <StackPanel>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition MaxHeight="200"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0">
             <WrapPanel>
                 <TextBlock Margin="5" Text="Folder to check" Width="150" />
                 <TextBox Margin="5" x:Name="tbSource" Width="500"/>
@@ -16,7 +21,8 @@
                 <TextBlock Margin="5" Text="Photos library" Width="150"/>
                 <TextBox Margin="5" x:Name="tbTarget" Width="500"/>
             </WrapPanel>
-            <Button Margin="5" x:Name="btnCheck" Content="CHECK" Click="btnCheck_Click"/>
         </StackPanel>
-    </StackPanel>
+        <Button Grid.Row="1" Margin="5" x:Name="btnCheck" Content="CHECK" Click="btnCheck_Click" Width="100"/>
+        <TextBox Grid.Row="2" IsEnabled="False" x:Name="tbLog"/>
+    </Grid>
 </Window>
