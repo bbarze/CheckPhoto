@@ -10,19 +10,21 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition MaxHeight="200"/>
+            <RowDefinition MaxHeight="400"/>
         </Grid.RowDefinitions>
         <StackPanel Grid.Row="0">
-            <WrapPanel>
-                <TextBlock Margin="5" Text="Folder to check" Width="150" />
-                <TextBox Margin="5" x:Name="tbSource" Width="500"/>
+            <WrapPanel Margin="2">
+                <TextBlock Text="Folder to check" Width="150" />
+                <TextBox x:Name="tbSource" Width="500"/>
+                <Button x:Name="btnS" Content="..." Width="40" Click="btnS_Click"/>
             </WrapPanel>
-            <WrapPanel>
-                <TextBlock Margin="5" Text="Photos library" Width="150"/>
-                <TextBox Margin="5" x:Name="tbTarget" Width="500"/>
+            <WrapPanel Margin="2">
+                <TextBlock Text="Photos library" Width="150"/>
+                <TextBox x:Name="tbTarget" Width="500"/>
+                <Button x:Name="btnT" Content="..." Width="40" Click="btnT_Click"/>
             </WrapPanel>
         </StackPanel>
         <Button Grid.Row="1" Margin="5" x:Name="btnCheck" Content="CHECK" Click="btnCheck_Click" Width="100"/>
-        <TextBox Grid.Row="2" IsEnabled="False" x:Name="tbLog"/>
+        <TextBox Grid.Row="2" IsEnabled="False" x:Name="tbLog" VerticalScrollBarVisibility="Auto"/>
     </Grid>
 </Window>

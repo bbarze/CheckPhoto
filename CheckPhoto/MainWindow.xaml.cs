@@ -24,29 +24,30 @@ namespace CheckPhoto
     /// <summary>
     /// Redirect console output to TextBox
     /// </summary>
-    public class ControlWriter : TextWriter
+    public class TextBoxWriter : TextWriter
     {
-        private TextBox textbox;
-        public ControlWriter(TextBox tb)
+        TextBox _output = null;
+
+        public TextBoxWriter(TextBox output)
         {
-            this.textbox = tb;
+            _output = output;
         }
 
         public override void Write(char value)
         {
-            textbox.Text += value;
-            textbox.ScrollToEnd();
-        }
+            base.Write(value);
 
-        public override void Write(string value)
-        {
-            textbox.Text += value;
-            textbox.ScrollToEnd();
+            _output.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _output.AppendText(value.ToString());
+                _output.ScrollToEnd();
+            }));
+
         }
 
         public override Encoding Encoding
         {
-            get { return Encoding.ASCII; }
+            get { return System.Text.Encoding.UTF8; }
         }
     }
 
@@ -146,7 +147,7 @@ namespace CheckPhoto
                 String pathTarget = ConfigurationManager.AppSettings["pathSourceAlbumPhoto"];
                 tbTarget.Text = pathTarget;
 
-                //TODO Console.SetOut(new ControlWriter(tbLog)); must be done thread safe...
+                Console.SetOut(new TextBoxWriter(tbLog));
 
             }
             catch (Exception ex)
@@ -172,13 +173,13 @@ namespace CheckPhoto
 
                 int cnt = Directory.GetFiles(pathTarget, f2CheckName, System.IO.SearchOption.AllDirectories).Count();
 
+                log.Info($" ----------------------------------  {f2CheckName}  ---------------------------------- ");
+
                 if (cnt <= 0)
                 {
                     log.Info($"Inside {pathTarget} there are no file named {f2CheckName}");
                     return;
                 }
-
-                log.Info($" ----------------------------------  {f2CheckName}  ---------------------------------- ");
 
                 String[] existingFile = Directory.GetFiles(pathTarget, f2CheckName, System.IO.SearchOption.AllDirectories);
 
@@ -304,7 +305,7 @@ namespace CheckPhoto
                     return;
                 }
 
-                String[] fileEntries = Directory.GetFiles(pathSource);
+                String[] fileEntries = Directory.GetFiles(pathSource, "*", System.IO.SearchOption.AllDirectories);
 
                 foreach (string f2Check in fileEntries)
                 {
@@ -395,6 +396,38 @@ namespace CheckPhoto
         void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             log.Info("Closed!");
+            Environment.Exit(Environment.ExitCode);
+        }
+
+        private void btnS_Click(object sender, RoutedEventArgs e)
+        {
+            String p = GetFolderPath();
+            if (p.Length > 0)
+            {
+                tbSource.Text = p;
+            }
+        }
+
+        private static String GetFolderPath()
+        {
+            using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
+            {
+                System.Windows.Forms.DialogResult result = dialog.ShowDialog();
+                if (result == System.Windows.Forms.DialogResult.OK)
+                {
+                    return dialog.SelectedPath;
+                }
+            }
+            return String.Empty;
+        }
+
+        private void btnT_Click(object sender, RoutedEventArgs e)
+        {
+            String p = GetFolderPath();
+            if (p.Length > 0)
+            {
+                tbTarget.Text = p;
+            }
         }
     }
 }
