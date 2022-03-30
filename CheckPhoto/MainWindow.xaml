@@ -9,14 +9,14 @@
     <StackPanel>
         <StackPanel>
             <WrapPanel>
-                <TextBlock Margin="5" Text="Cartella foto da controllare" Width="150" />
+                <TextBlock Margin="5" Text="Folder to check" Width="150" />
                 <TextBox Margin="5" x:Name="tbSource" Width="500"/>
             </WrapPanel>
             <WrapPanel>
-                <TextBlock Margin="5" Text="Cartella foto" Width="150"/>
+                <TextBlock Margin="5" Text="Photos library" Width="150"/>
                 <TextBox Margin="5" x:Name="tbTarget" Width="500"/>
             </WrapPanel>
-            <Button Margin="5" x:Name="btnCheck" Content="Check" Click="btnCheck_Click"/>
+            <Button Margin="5" x:Name="btnCheck" Content="CHECK" Click="btnCheck_Click"/>
         </StackPanel>
     </StackPanel>
 </Window>
