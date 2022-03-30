@@ -25,8 +25,8 @@
         </WrapPanel>
         <TextBlock x:Name="tbSimilarity" HorizontalAlignment="Center"/>
         <WrapPanel HorizontalAlignment="Center">
-            <Button Margin="10" x:Name="btnEquals" Content="Uguali" Height="30" Width="80" Click="Equals_Click"/>
-            <Button Margin="10" x:Name="btnNotEquals" Content="Non Uguali" Height="30" Width="80" Click="NotEquals_Click"/>
+            <Button Margin="10" x:Name="btnEquals" Content="EQUALS" Height="30" Width="90" Click="Equals_Click"/>
+            <Button Margin="10" x:Name="btnNotEquals" Content="NOT EQUALS" Height="30" Width="90" Click="NotEquals_Click"/>
         </WrapPanel>
     </StackPanel>
 </Window>

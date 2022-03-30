@@ -27,7 +27,12 @@ namespace CheckPhoto
     public partial class MainWindow : Window
     {
 
-        static byte[] Sha256HashFile(string file)
+        /// <summary>
+        /// Calculate the SHA256 of the file passed
+        /// </summary>
+        /// <param name="file">File to calculate SHA256</param>
+        /// <returns>SHA256 of the file</returns>
+        private static byte[] Sha256HashFile(string file)
         {
             using (SHA256 sha256 = SHA256.Create())
             {
@@ -43,7 +48,12 @@ namespace CheckPhoto
             }
         }
 
-        static List<bool> GetHash(String bmpSource)
+        /// <summary>
+        /// Compress the image and convert to black and white. Put the result inside a list
+        /// </summary>
+        /// <param name="bmpSource"></param>
+        /// <returns></returns>
+        private static List<bool> GetHash(String bmpSource)
         {
             List<bool> lResult = new List<bool>();
             //create new image with 16x16 pixel
@@ -64,20 +74,36 @@ namespace CheckPhoto
             }
         }
 
-        String GetName(String file)
+        /// <summary>
+        /// Based on filename extension, chek if the file passed is a photo
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <returns></returns>
+        private static bool IsPhoto(String fileName)
         {
-            FileInfo fi = new FileInfo(file);
+            return fileName.ToLower().EndsWith(".png") || fileName.ToLower().EndsWith(".cr2") || fileName.ToLower().EndsWith(".jpg");
+        }
+
+        private static String GetFileName(String fileName)
+        {
+            FileInfo fi = new FileInfo(fileName);
             return fi.Name;
         }
 
-        long GetSize(String file)
+        private static long GetFileSize(String fileName)
         {
-            FileInfo fi = new FileInfo(file);
+            FileInfo fi = new FileInfo(fileName);
             return fi.Length;
         }
 
-        static bool isWorking = false;
+        /// <summary>
+        /// Indicate if the process is running or not
+        /// </summary>
+        private static bool isWorking = false;
 
+        /// <summary>
+        /// Manage Log4Net
+        /// </summary>
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         public MainWindow()
@@ -91,21 +117,30 @@ namespace CheckPhoto
             tbTarget.Text = pathTarget;
         }
 
+        /// <summary>
+        /// If the file that is passed already exist in target folder, it will be deleted. 
+        /// If exist a similar one will be asked to user if the two file are the same.
+        /// </summary>
+        /// <param name="f2Check">File that will be checked</param>
+        /// <param name="pathTarget">Target path</param>
+        /// <param name="duplicatedIdentical">Counter for statistical porpouse. Identical file found and deleted from source folder</param>
+        /// <param name="deletedSource">Counter for statistical porpouse. File from source is similar to file in target but has less resolution so deleted</param>
+        /// <param name="movedFromSource2Target">Counter for statistical porpouse. File from source is similar to file in target but has grater resolution so replace the file in target</param>
         private void CheckFile(String f2Check, String pathTarget, ref int duplicatedIdentical, ref int deletedSource, ref int movedFromSource2Target)
         {
             try
             {
-                string f2CheckName = GetName(f2Check);
+                string f2CheckName = GetFileName(f2Check);
 
                 int cnt = Directory.GetFiles(pathTarget, f2CheckName, System.IO.SearchOption.AllDirectories).Count();
 
                 if (cnt <= 0)
                 {
-                    log.Info($"Nel percorso {pathTarget} (e sottocartelle) non ci sono file che si chiamino {f2CheckName}");
+                    log.Info($"Inside {pathTarget} there are no file named {f2CheckName}");
                     return;
                 }
 
-                log.Info($"----  {f2Check}  ----");
+                log.Info($" ----------------------------------  {f2CheckName}  ---------------------------------- ");
 
                 String[] existingFile = Directory.GetFiles(pathTarget, f2CheckName, System.IO.SearchOption.AllDirectories);
 
@@ -119,7 +154,7 @@ namespace CheckPhoto
 
                     if (same)
                     {
-                        log.Info($"{f2Check} viene eliminata perchè è identica a {fExisting}");
+                        log.Info($"{f2Check} will be deleted becouse of is identcal to {fExisting}");
                         duplicatedIdentical++;
                         FileSystem.DeleteFile(f2Check, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
                         return;
@@ -143,11 +178,11 @@ namespace CheckPhoto
                         int equalElements = iHashNew.Zip(iHashOld, (i, j) => i == j).Count(eq => eq);
                         double similarity = 100 * equalElements / maxElement;
 
-                        log.Info($"{f2Check} è simile a {fExisting} al {similarity}%");
+                        log.Info($"{f2Check} is {similarity}% similar to {fExisting}");
 
                         if (similarity < lowerLimit && skipControlBecouseDifferent)
                         {
-                            log.Info($"Sono diverse! Non vengono mostrate, il limite inferiore è {lowerLimit}!");
+                            log.Info($"Will be conisdered as different! lowerLimit={lowerLimit}!");
                             break;
                         }
 
@@ -161,11 +196,11 @@ namespace CheckPhoto
                         }
 
                         //The images are similar, manage it
-                        if (GetSize(f2Check) > GetSize(fExisting))
+                        if (GetFileSize(f2Check) > GetFileSize(fExisting))
                         {
                             //Il nuovo file ha risoluzione maggiore, si sostituisce il vecchio col nuovo
+                            log.Info($"New file [{f2Check}] has a better resoluiton then the old one [{fExisting}]. The old one will be replaced");
                             FileSystem.DeleteFile(fExisting, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
-                            log.Info($"Il nuovo file {f2Check} ha risoluzione migliore del vecchio file {fExisting}. Lo rimpiazzerà.");
                             File.Move(f2Check, fExisting);
                             movedFromSource2Target++;
                             return;
@@ -174,7 +209,7 @@ namespace CheckPhoto
                         {
                             //Il nuovo file ha risoluzione minore, va eliminato
                             FileSystem.DeleteFile(f2Check, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
-                            log.Info($"Il nuovo file aveva risoluzione minore ofìd uguale, viene eliminato: {f2Check}");
+                            log.Info($"New file has a lower or equal resolution than the new one. So {f2Check} will be deleted.");
                             deletedSource++;
                             return;
                         }
@@ -182,7 +217,7 @@ namespace CheckPhoto
                 }
                 else
                 {
-                    log.Info($"{f2Check} non è una foto!");
+                    log.Info($"{f2Check} is not a photo!");
                     return;
                 }
             }
@@ -192,7 +227,12 @@ namespace CheckPhoto
             }
         }
 
-
+        /// <summary>
+        /// Start the comparison of the files present in source folder.
+        /// The comparison is made by filename
+        /// </summary>
+        /// <param name="pathSource">Source path</param>
+        /// <param name="pathTarget">Target path</param>
         void RunIt(String pathSource, String pathTarget)
         {
             if (isWorking)
@@ -212,7 +252,7 @@ namespace CheckPhoto
             try
             {
                 isWorking = true;
-                log.Info("###########################");
+                log.Info("######################################################");
                 log.Info("Started!");
 
                 if (!Directory.Exists(pathSource))
@@ -240,7 +280,6 @@ namespace CheckPhoto
             }
             isWorking = false;
 
-
             log.Info("END: ");
             log.Info("deleted identical: " + duplicatedIdentical);
             log.Info("deleted from folder to check: " + deletedSource);
@@ -248,33 +287,28 @@ namespace CheckPhoto
 
             Application.Current.Dispatcher.Invoke(() =>
             {
-                MessageBox.Show($"END:{System.Environment.NewLine}" +
-                    $"deleted identical: {duplicatedIdentical}{System.Environment.NewLine}" +
-                    $"deleted from folder to check: {deletedSource}{System.Environment.NewLine}" +
-                    $"replaced (moved from folder to check): {movedFromSource2Target}{System.Environment.NewLine}");
+                MessageBox.Show($"END");
             });
 
         }
 
-        private bool IsPhoto(string fileName)
-        {
-            return fileName.ToLower().EndsWith(".png") || fileName.ToLower().EndsWith(".cr2") || fileName.ToLower().EndsWith(".jpg");
-        }
-
+        /// <summary>
+        /// Showned an instance of CompareWindow, so the user can said if two images are the same thing or not 
+        /// </summary>
+        /// <param name="f2Check">File present inside source folder</param>
+        /// <param name="fExisting">File present inside target folder</param>
+        /// <param name="similarity">Similarity calculated between the two file</param>
+        /// <returns>True if the two file are the same else false</returns>
         private bool MineDialogResult(String f2Check, String fExisting, double similarity)
         {
             try
             {
-                //log.Debug("in here");
                 return Application.Current.Dispatcher.Invoke(() =>
                 {
-                    //log.Debug("Going to show comparingWindows");
                     CompareWindow cw = new CompareWindow(f2Check, fExisting, similarity);
                     cw.ShowDialog();
-                    //log.Debug("ComparingWindows showed");
                     if (!cw.DialogResult.HasValue || !cw.DialogResult.Value)
                     {
-                        //log.Debug("No result or negative");
                         return false;
                     }
                     return true;
@@ -287,6 +321,11 @@ namespace CheckPhoto
             }
         }
 
+        /// <summary>
+        /// Clicked the button to start the comparison inside a thread
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         void btnCheck_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -310,6 +349,11 @@ namespace CheckPhoto
             }
         }
 
+        /// <summary>
+        /// Application closing
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             log.Info("Closed!");

@@ -103,7 +103,7 @@ namespace CheckPhoto
             }
             catch (Exception ex)
             {
-                log.Error($"Caricamento foto simili {newFileName} & {oldFileName}");
+                log.Error($"Loading [{newFileName}] & [{oldFileName}]: {ex}");
             }
 
         }
@@ -111,14 +111,14 @@ namespace CheckPhoto
         void Equals_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = true;
-            log.Info($"Le due foto sono simili");
+            log.Info($"Those are similar");
             this.Close();
         }
 
         void NotEquals_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = false;
-            log.Info($"Le due foto non sono simili");
+            log.Info($"Those are NOT similar");
             this.Close();
         }
     }
