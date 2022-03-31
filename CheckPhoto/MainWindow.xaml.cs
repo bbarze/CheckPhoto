@@ -147,7 +147,17 @@ namespace CheckPhoto
                 String pathTarget = ConfigurationManager.AppSettings["pathSourceAlbumPhoto"];
                 tbTarget.Text = pathTarget;
 
-                Console.SetOut(new TextBoxWriter(tbLog));
+                bool compareWindowUL = bool.Parse(ConfigurationManager.AppSettings["doNotShowUpperAndEqualThanUpperLimit"]);
+                String uL = ConfigurationManager.AppSettings["upperLimitPercentage"];
+                cbULimit.IsChecked = compareWindowUL;
+                tbULimit.Text = uL;
+
+                bool compareWindowLL = bool.Parse(ConfigurationManager.AppSettings["doNotShowLowerThanLowerLimit"]);
+                String lL = ConfigurationManager.AppSettings["lowerLimitPercentage"];
+                cbLLimit.IsChecked = compareWindowLL;
+                tbLLimit.Text = lL;
+
+                //TODO Console.SetOut(new TextBoxWriter(tbLog));
 
             }
             catch (Exception ex)
@@ -162,10 +172,17 @@ namespace CheckPhoto
         /// </summary>
         /// <param name="f2Check">File that will be checked</param>
         /// <param name="pathTarget">Target path</param>
+        /// <param name="upperLimit"></param>
+        /// <param name="skipControlBecouseEquals"></param>
+        /// <param name="lowerLimit"></param>
+        /// <param name="skipControlBecouseDifferent"></param>
         /// <param name="duplicatedIdentical">Counter for statistical porpouse. Identical file found and deleted from source folder</param>
         /// <param name="deletedSource">Counter for statistical porpouse. File from source is similar to file in target but has less resolution so deleted</param>
         /// <param name="movedFromSource2Target">Counter for statistical porpouse. File from source is similar to file in target but has grater resolution so replace the file in target</param>
-        private void CheckFile(String f2Check, String pathTarget, ref int duplicatedIdentical, ref int deletedSource, ref int movedFromSource2Target)
+        private void CheckFile(String f2Check, String pathTarget,
+            double upperLimit, bool skipControlBecouseEquals,
+            double lowerLimit, bool skipControlBecouseDifferent,
+            ref int duplicatedIdentical, ref int deletedSource, ref int movedFromSource2Target)
         {
             try
             {
@@ -204,12 +221,6 @@ namespace CheckPhoto
                 {
                     foreach (string fExisting in existingFile)
                     {
-                        // Check similar file
-                        double upperLimit = Convert.ToDouble(ConfigurationManager.AppSettings["upperLimitPercentage"]);
-                        bool skipControlBecouseEquals = Convert.ToBoolean(ConfigurationManager.AppSettings["doNotShowUpperAndEqualThanUpperLimit"]);
-
-                        double lowerLimit = Convert.ToDouble(ConfigurationManager.AppSettings["lowerLimitPercentage"]);
-                        bool skipControlBecouseDifferent = Convert.ToBoolean(ConfigurationManager.AppSettings["doNotShowLowerThanLowerLimit"]);
 
                         List<bool> iHashNew = GetHash(f2Check);
                         List<bool> iHashOld = GetHash(fExisting);
@@ -272,17 +283,14 @@ namespace CheckPhoto
         /// </summary>
         /// <param name="pathSource">Source path</param>
         /// <param name="pathTarget">Target path</param>
-        void RunIt(String pathSource, String pathTarget)
+        /// <param name="upperLimit"></param>
+        /// <param name="skipControlBecouseEquals"></param>
+        /// <param name="lowerLimit"></param>
+        /// <param name="skipControlBecouseDifferent"></param>
+        void RunIt(String pathSource, String pathTarget,
+            double upperLimit, bool skipControlBecouseEquals,
+            double lowerLimit, bool skipControlBecouseDifferent)
         {
-            if (isWorking)
-            {
-                log.Warn("Is already working!");
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    MessageBox.Show($"Is already working!");
-                });
-                return;
-            }
 
             int duplicatedIdentical = 0;
             int deletedSource = 0;
@@ -290,7 +298,6 @@ namespace CheckPhoto
 
             try
             {
-                isWorking = true;
                 log.Info("######################################################");
                 log.Info("Started!");
 
@@ -309,7 +316,8 @@ namespace CheckPhoto
 
                 foreach (string f2Check in fileEntries)
                 {
-                    CheckFile(f2Check, pathTarget, ref duplicatedIdentical, ref deletedSource, ref movedFromSource2Target);
+                    CheckFile(f2Check, pathTarget, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent,
+                        ref duplicatedIdentical, ref deletedSource, ref movedFromSource2Target);
                 }
 
             }
@@ -317,17 +325,11 @@ namespace CheckPhoto
             {
                 log.Error(ex);
             }
-            isWorking = false;
 
             log.Info("END: ");
             log.Info("deleted identical: " + duplicatedIdentical);
             log.Info("deleted from folder to check: " + deletedSource);
             log.Info("replaced (moved from folder to check): " + movedFromSource2Target);
-
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                MessageBox.Show($"END");
-            });
 
         }
 
@@ -369,12 +371,28 @@ namespace CheckPhoto
         {
             try
             {
+
+                if (isWorking)
+                {
+                    log.Warn("Is already working!");
+                    MessageBox.Show($"Is already working!");
+                    return;
+                }
+
+                isWorking = true;
+                btnCheck.IsEnabled = false;
+
                 String source = tbSource.Text;
                 String target = tbTarget.Text;
 
+                double upperLimit = Convert.ToDouble(tbULimit.Text);
+                bool skipControlBecouseEquals = cbULimit.IsChecked.Value;
+                double lowerLimit = Convert.ToDouble(tbLLimit.Text);
+                bool skipControlBecouseDifferent = cbLLimit.IsChecked.Value;
+
                 Thread processThread = new Thread(delegate ()
                 {
-                    RunIt(source, target);
+                    RunIt(source, target, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent);
                 });
                 processThread.SetApartmentState(ApartmentState.STA);
                 processThread.IsBackground = true;
@@ -384,8 +402,13 @@ namespace CheckPhoto
             catch (Exception ex)
             {
                 log.Error(ex);
-                Mouse.OverrideCursor = System.Windows.Input.Cursors.Arrow;
             }
+
+            //TODO move after thread finish... in here is done immidiatly
+            log.Info("FINISH!");
+            isWorking = false;
+            btnCheck.IsEnabled = true;
+            MessageBox.Show($"END");
         }
 
         /// <summary>
