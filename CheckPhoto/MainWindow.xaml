@@ -9,32 +9,55 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition MaxHeight="300"/>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0" HorizontalAlignment="Center">
-            <WrapPanel Margin="5">
-                <TextBlock Text="Folder to check" Width="150" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                <TextBox x:Name="tbSource" Width="500"/>
-                <Button x:Name="btnS" Content="..." Width="40" Click="btnS_Click"/>
-            </WrapPanel>
-            <WrapPanel Margin="5">
-                <TextBlock Text="Photos library" Width="150" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBox x:Name="tbTarget" Width="500"/>
-                <Button x:Name="btnT" Content="..." Width="40" Click="btnT_Click"/>
-            </WrapPanel>
-            <WrapPanel Margin="5">
-                <CheckBox x:Name="cbULimit" Width="620" Content="Don't show compare window and consider as equals if two photo are similar as or more than the Upper Limit: " HorizontalAlignment="Center" VerticalAlignment="Center" />
-                <TextBox x:Name="tbULimit" Width="50"/>
-                <Label Content="%"/>
-            </WrapPanel>
-            <WrapPanel Margin="5">
-                <CheckBox x:Name="cbLLimit"  Width="620" Content="Don't show compare window and consider as different if two photo are similar less than the Lower Limit: " VerticalAlignment="Center" HorizontalAlignment="Center" />
-                <TextBox x:Name="tbLLimit" Width="50"/>
-                <Label Content="%"/>
-            </WrapPanel>
-            </StackPanel>
-        <Button Grid.Row="1" Margin="5" x:Name="btnCheck" Content="CHECK" Click="btnCheck_Click" Width="100"/>
-        <TextBox Grid.Row="2" x:Name="tbLog" VerticalScrollBarVisibility="Auto"/>
+        <WrapPanel Grid.Row="0" >
+            <GroupBox Header="COMPARE" Margin="5">
+                <StackPanel>
+                    <WrapPanel Margin="5">
+                        <TextBlock Text="Folder to check" Width="100" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBox x:Name="tbSource" Width="500"/>
+                        <Button x:Name="btnS" Content="..." Width="40" Click="btnS_Click" Margin="2"/>
+                    </WrapPanel>
+                    <WrapPanel Margin="5">
+                        <TextBlock Text="Photos library" Width="100" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <TextBox x:Name="tbTarget" Width="500"/>
+                        <Button x:Name="btnT" Content="..." Width="40" Click="btnT_Click" Margin="2"/>
+                    </WrapPanel>
+                    <WrapPanel Margin="5">
+                        <CheckBox x:Name="cbULimit" Width="620" Content="Don't show compare window and consider as equals if two photo are similar as or more than the Upper Limit: " HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBox x:Name="tbULimit" Width="50" TextAlignment="Center" VerticalAlignment="Center"/>
+                        <Label Content="%"/>
+                    </WrapPanel>
+                    <WrapPanel Margin="5">
+                        <CheckBox x:Name="cbLLimit"  Width="620" Content="Don't show compare window and consider as different if two photo are similar less than the Lower Limit: " VerticalAlignment="Center" HorizontalAlignment="Center" />
+                        <TextBox x:Name="tbLLimit" Width="50" TextAlignment="Center" VerticalAlignment="Center"/>
+                        <Label Content="%"/>
+                    </WrapPanel>
+                    <Button x:Name="btnCheck" Content="CHECK" Click="btnCheck_Click" Width="100"/>
+                </StackPanel>
+            </GroupBox>
+            <GroupBox Header="FIND DUPLICATE" Margin="5">
+                <StackPanel>
+                    <TextBlock Margin="15">
+                        Check all the file present with the same name. <LineBreak/> <LineBreak/> 
+                        Returns for each one: <LineBreak/> 
+                        Path, <LineBreak/> 
+                        Similarity, <LineBreak/> 
+                        DateTime Taken if available
+                    </TextBlock>
+                    <Button x:Name="btnFindDuplicate" Content="FIND DUPLICATE" Width="100" Margin="20" Click="btnFindDuplicate_Click"/>
+                </StackPanel>
+            </GroupBox>
+            <GroupBox Header="SETTINGS" Margin="5">
+                <StackPanel>
+                    <Button x:Name="btnOpenLog" Content="EXE FOLDER" Width="100" Margin="20" Click="btnOpenFolder_Click"/>
+                    <Button x:Name="btnSaveSetting" Content="SAVE SETTINGS" Width="100" Margin="20" Click="btnSaveSetting_Click"/>
+                </StackPanel>
+            </GroupBox>
+        </WrapPanel>
+        <ProgressBar x:Name="pb"  Grid.Row="1" Margin="3" Maximum="100" />
+        <ListView x:Name="lvLog" Grid.Row="2" />
     </Grid>
 </Window>

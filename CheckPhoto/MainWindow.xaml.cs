@@ -2,9 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -18,38 +20,29 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace CheckPhoto
 {
+
     /// <summary>
-    /// Redirect console output to TextBox
+    /// Redirect Console to String List
     /// </summary>
-    public class TextBoxWriter : TextWriter
+    public class CustomTextWriter : TextWriter
     {
-        TextBox _output = null;
+        public List<String> sList = new List<String>();
 
-        public TextBoxWriter(TextBox output)
+        public override void Write(String value)
         {
-            _output = output;
-        }
-
-        public override void Write(char value)
-        {
-            base.Write(value);
-
-            _output.Dispatcher.BeginInvoke(new Action(() =>
-            {
-                _output.AppendText(value.ToString());
-                _output.ScrollToEnd();
-            }));
-
+            sList.Add(value);
         }
 
         public override Encoding Encoding
         {
-            get { return System.Text.Encoding.UTF8; }
+            get { return Encoding.Default; }
         }
     }
+
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -135,6 +128,16 @@ namespace CheckPhoto
         /// </summary>
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
+        /// <summary>
+        /// Used to redirect through log4net console log to String List
+        /// </summary>
+        CustomTextWriter logWriter;
+
+        /// <summary>
+        /// Timer used to print on UI logs
+        /// </summary>
+        DispatcherTimer logDispatcherTimer;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -157,13 +160,57 @@ namespace CheckPhoto
                 cbLLimit.IsChecked = compareWindowLL;
                 tbLLimit.Text = lL;
 
-                //TODO Console.SetOut(new TextBoxWriter(tbLog));
+                logWriter = new CustomTextWriter();
+                Console.SetOut(logWriter);
+
+                logDispatcherTimer = new System.Windows.Threading.DispatcherTimer();
+                logDispatcherTimer.Tick += new EventHandler(dispatcherTimer_Tick);
+                logDispatcherTimer.Interval = new TimeSpan(0, 0, 5);
+                logDispatcherTimer.Start();
+
+                log.Info("...STARTING");
 
             }
             catch (Exception ex)
             {
                 log.Error(ex);
             }
+        }
+
+        /// <summary>
+        /// Manage log to UI
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void dispatcherTimer_Tick(object sender, EventArgs e)
+        {
+            List<String> newLogs = logWriter.sList.ToList();
+
+            List<String> showedLogs = lvLog.Items.SourceCollection.Cast<String>().ToList();
+
+            logWriter.sList.Clear();
+
+            if (showedLogs.Count > 30 && newLogs.Count > 0)
+            {
+                lvLog.ItemsSource = newLogs;
+            }
+            else
+            {
+                showedLogs.AddRange(newLogs);
+                lvLog.ItemsSource = showedLogs;
+            }
+
+            var selectedIndex = lvLog.Items.Count - 1;
+            if (selectedIndex < 0)
+            {
+                return;
+            }
+
+            lvLog.SelectedIndex = selectedIndex;
+            lvLog.UpdateLayout();
+
+            lvLog.ScrollIntoView(lvLog.SelectedItem);
+
         }
 
         /// <summary>
@@ -179,10 +226,10 @@ namespace CheckPhoto
         /// <param name="duplicatedIdentical">Counter for statistical porpouse. Identical file found and deleted from source folder</param>
         /// <param name="deletedSource">Counter for statistical porpouse. File from source is similar to file in target but has less resolution so deleted</param>
         /// <param name="movedFromSource2Target">Counter for statistical porpouse. File from source is similar to file in target but has grater resolution so replace the file in target</param>
-        private void CheckFile(String f2Check, String pathTarget,
+        private void CheckFile(long totItem, long iCount, String f2Check, String pathTarget,
             double upperLimit, bool skipControlBecouseEquals,
             double lowerLimit, bool skipControlBecouseDifferent,
-            ref int duplicatedIdentical, ref int deletedSource, ref int movedFromSource2Target)
+            ref long duplicatedIdentical, ref long deletedSource, ref long movedFromSource2Target)
         {
             try
             {
@@ -190,7 +237,7 @@ namespace CheckPhoto
 
                 int cnt = Directory.GetFiles(pathTarget, f2CheckName, System.IO.SearchOption.AllDirectories).Count();
 
-                log.Info($" ----------------------------------  {f2CheckName}  ---------------------------------- ");
+                log.Info($" ---------------------------------- [{iCount}/{totItem}] {f2CheckName}  ---------------------------------- ");
 
                 if (cnt <= 0)
                 {
@@ -292,9 +339,11 @@ namespace CheckPhoto
             double lowerLimit, bool skipControlBecouseDifferent)
         {
 
-            int duplicatedIdentical = 0;
-            int deletedSource = 0;
-            int movedFromSource2Target = 0;
+            long duplicatedIdentical = 0;
+            long deletedSource = 0;
+            long movedFromSource2Target = 0;
+            long totItems = 0;
+            long iItems = 0;
 
             try
             {
@@ -303,20 +352,31 @@ namespace CheckPhoto
 
                 if (!Directory.Exists(pathSource))
                 {
-                    log.Error($"{pathSource} doesn't exist");
+                    log.Error($"PATH: {pathSource} doesn't exist");
+                    JobFinished();
                     return;
                 }
                 if (!Directory.Exists(pathTarget))
                 {
-                    log.Error($"{pathTarget} doesn't exist");
+                    log.Error($"PATH: {pathTarget} doesn't exist");
+                    JobFinished();
                     return;
                 }
 
                 String[] fileEntries = Directory.GetFiles(pathSource, "*", System.IO.SearchOption.AllDirectories);
 
+                totItems = fileEntries.Count();
+
                 foreach (string f2Check in fileEntries)
                 {
-                    CheckFile(f2Check, pathTarget, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent,
+                    iItems++;
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        pb.Value = (totItems / 100) * iItems;
+                    });
+
+                    CheckFile(totItems, iItems, f2Check, pathTarget, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent,
                         ref duplicatedIdentical, ref deletedSource, ref movedFromSource2Target);
                 }
 
@@ -331,6 +391,19 @@ namespace CheckPhoto
             log.Info("deleted from folder to check: " + deletedSource);
             log.Info("replaced (moved from folder to check): " + movedFromSource2Target);
 
+            JobFinished();
+
+        }
+
+        private void JobFinished()
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                isWorking = false;
+                btnCheck.IsEnabled = true;
+                pb.Value = 0;
+                MessageBox.Show($"END");
+            });
         }
 
         /// <summary>
@@ -402,13 +475,8 @@ namespace CheckPhoto
             catch (Exception ex)
             {
                 log.Error(ex);
+                JobFinished();
             }
-
-            //TODO move after thread finish... in here is done immidiatly
-            log.Info("FINISH!");
-            isWorking = false;
-            btnCheck.IsEnabled = true;
-            MessageBox.Show($"END");
         }
 
         /// <summary>
@@ -451,6 +519,42 @@ namespace CheckPhoto
             {
                 tbTarget.Text = p;
             }
+        }
+
+        private void btnOpenFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Process.Start("explorer.exe", @AssemblyDirectory);
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+            }
+
+        }
+
+        private void btnFindDuplicate_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("TODO!");
+            //TODO cerca i file duplicati
+        }
+
+        public static string AssemblyDirectory
+        {
+            get
+            {
+                string codeBase = Assembly.GetExecutingAssembly().CodeBase;
+                UriBuilder uri = new UriBuilder(codeBase);
+                string path = Uri.UnescapeDataString(uri.Path);
+                return System.IO.Path.GetDirectoryName(path);
+            }
+        }
+
+        private void btnSaveSetting_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("TODO!");
+            //TODO cerca i file duplicati
         }
     }
 }
