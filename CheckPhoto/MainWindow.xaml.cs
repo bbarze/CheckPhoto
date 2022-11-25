@@ -1,4 +1,6 @@
 ﻿using Microsoft.VisualBasic.FileIO;
+using Microsoft.WindowsAPICodePack.Shell.PropertySystem;
+using Microsoft.WindowsAPICodePack.Shell;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -21,6 +23,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Tab;
 
 namespace CheckPhoto
 {
@@ -104,6 +107,16 @@ namespace CheckPhoto
         private static bool IsPhoto(String fileName)
         {
             return fileName.ToLower().EndsWith(".png") || fileName.ToLower().EndsWith(".cr2") || fileName.ToLower().EndsWith(".jpg");
+        }
+
+        /// <summary>
+        /// Based on filename extension, chek if the file passed is a video
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <returns></returns>
+        private static bool IsVideo(String fileName)
+        {
+            return fileName.ToLower().EndsWith(".mp4") || fileName.ToLower().EndsWith(".avi");
         }
 
         private static String GetFileName(String fileName)
@@ -226,7 +239,7 @@ namespace CheckPhoto
         /// <param name="duplicatedIdentical">Counter for statistical porpouse. Identical file found and deleted from source folder</param>
         /// <param name="deletedSource">Counter for statistical porpouse. File from source is similar to file in target but has less resolution so deleted</param>
         /// <param name="movedFromSource2Target">Counter for statistical porpouse. File from source is similar to file in target but has grater resolution so replace the file in target</param>
-        private void CheckFile(long totItem, long iCount, String f2Check, String pathTarget,
+        private void CheckFile(String f2Check, String pathTarget,
             double upperLimit, bool skipControlBecouseEquals,
             double lowerLimit, bool skipControlBecouseDifferent,
             ref long duplicatedIdentical, ref long deletedSource, ref long movedFromSource2Target)
@@ -236,8 +249,6 @@ namespace CheckPhoto
                 string f2CheckName = GetFileName(f2Check);
 
                 int cnt = Directory.GetFiles(pathTarget, f2CheckName, System.IO.SearchOption.AllDirectories).Count();
-
-                log.Info($" ---------------------------------- [{iCount}/{totItem}] {f2CheckName}  ---------------------------------- ");
 
                 if (cnt <= 0)
                 {
@@ -312,15 +323,44 @@ namespace CheckPhoto
                         }
                     }
                 }
+                else if (IsVideo(f2Check))
+                {
+                    foreach (string fExisting in existingFile)
+                    {
+                        TimeSpan duration2Check = GetVideoDuration(f2Check);
+                        TimeSpan durationExist = GetVideoDuration(fExisting);
+
+                        if (duration2Check != durationExist)
+                        {
+                            log.Info($"The duration is different will be conisdered as different!");
+                            break;
+                        }
+
+                        log.Info($"The duration of both file is {duration2Check.ToString("HH:ss:mmm")}");
+
+
+
+                    }
+                }
                 else
                 {
-                    log.Info($"{f2Check} is not a photo!");
+                    log.Info($"{f2Check} is not a photo and is not a video!");
                     return;
                 }
             }
             catch (Exception ex)
             {
                 log.Error(ex);
+            }
+        }
+
+        private static TimeSpan GetVideoDuration(string filePath)
+        {
+            using (var shell = ShellObject.FromParsingName(filePath))
+            {
+                IShellProperty prop = shell.Properties.System.Media.Duration;
+                var t = (ulong)prop.ValueAsObject;
+                return TimeSpan.FromTicks((long)t);
             }
         }
 
@@ -376,7 +416,9 @@ namespace CheckPhoto
                         pb.Value = (totItems / 100) * iItems;
                     });
 
-                    CheckFile(totItems, iItems, f2Check, pathTarget, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent,
+                    log.Info($" ---------------------------------- [{iItems}/{totItems}] {pathTarget}  ---------------------------------- ");
+
+                    CheckFile(f2Check, pathTarget, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent,
                         ref duplicatedIdentical, ref deletedSource, ref movedFromSource2Target);
                 }
 
@@ -480,6 +522,34 @@ namespace CheckPhoto
         }
 
         /// <summary>
+        /// Insert or update the app.config file using the value and the key passed
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        public static void AddOrUpdateAppSettings(string key, string value)
+        {
+            try
+            {
+                var configFile = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+                var settings = configFile.AppSettings.Settings;
+                if (settings[key] == null)
+                {
+                    settings.Add(key, value);
+                }
+                else
+                {
+                    settings[key].Value = value;
+                }
+                configFile.Save(ConfigurationSaveMode.Modified);
+                ConfigurationManager.RefreshSection(configFile.AppSettings.SectionInformation.Name);
+            }
+            catch (ConfigurationErrorsException)
+            {
+                log.Error($"Error writing app settings: <{key}> - <{value}>");
+            }
+        }
+
+        /// <summary>
         /// Application closing
         /// </summary>
         /// <param name="sender"></param>
@@ -553,8 +623,12 @@ namespace CheckPhoto
 
         private void btnSaveSetting_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("TODO!");
-            //TODO cerca i file duplicati
+            AddOrUpdateAppSettings("pathSourceNewPhoto", tbSource.Text);
+            AddOrUpdateAppSettings("pathSourceAlbumPhoto", tbTarget.Text);
+            AddOrUpdateAppSettings("doNotShowUpperAndEqualThanUpperLimit", cbULimit.IsChecked.Value.ToString());
+            AddOrUpdateAppSettings("upperLimitPercentage", tbULimit.Text);
+            AddOrUpdateAppSettings("doNotShowLowerThanLowerLimit", cbULimit.IsChecked.Value.ToString());
+            AddOrUpdateAppSettings("lowerLimitPercentage", tbLLimit.Text);
         }
     }
 }
