@@ -5,12 +5,26 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CheckPhoto"
         mc:Ignorable="d"
-        Title="CompareWindow" Height="450" Width="800" WindowState="Maximized" Icon="comparing-2 - Copy.png">
+        Title="CompareWindow" Height="660" Width="800" WindowState="Maximized" Icon="comparing-2 - Copy.png">
     <StackPanel>
+        
+        <StackPanel Margin="30" x:Name="spVideoCmd">
+            <WrapPanel HorizontalAlignment="Center">
+                <TextBlock Width="100" Margin="3" x:Name="lblProgressStatus">00:00:00</TextBlock>
+                <Slider MinWidth="500" Name="timelineSlider" ValueChanged="SeekToMediaPosition" />
+                <TextBlock Width="100" Margin="3" x:Name="lblTot" TextAlignment="Right">00:00:00</TextBlock>
+            </WrapPanel>
+            <WrapPanel HorizontalAlignment="Center">
+                <Button x:Name="btnPause" Content="PAUSE" Margin="5" Padding="10" Width="100" Click="btnPause_Click"/>
+                <Button x:Name="btnStart" Content="START" Margin="5" Padding="10" Width="100" Click="btnStart_Click"/>
+            </WrapPanel>
+        </StackPanel>
+        
         <WrapPanel HorizontalAlignment="Center">
             <StackPanel Margin="20">
                 <TextBlock Text="NEW" HorizontalAlignment="Center"/>
                 <Image Width="300" x:Name="iNew" HorizontalAlignment="Center"/>
+                <MediaElement Width="300" x:Name="vNew" HorizontalAlignment="Center" MediaOpened="vNew_MediaOpened" LoadedBehavior="Manual" MediaEnded="vNew_MediaEnded"  />
                 <TextBox x:Name="tbNewPath"/>
                 <TextBlock x:Name="tbNewSize"/>
                 <TextBlock x:Name="tbNewInfo"/>
@@ -18,15 +32,19 @@
             <StackPanel Margin="20">
                 <TextBlock Text="OLD" HorizontalAlignment="Center"/>
                 <Image Width="300" x:Name="iOld" HorizontalAlignment="Center"/>
+                <MediaElement Width="300" x:Name="vOld" HorizontalAlignment="Center" LoadedBehavior="Manual" />
                 <TextBox x:Name="tbOldPath"/>
                 <TextBlock x:Name="tbOldSize"/>
                 <TextBlock x:Name="tbOldInfo"/>
             </StackPanel>
         </WrapPanel>
+        
         <TextBlock x:Name="tbSimilarity" HorizontalAlignment="Center"/>
+       
         <WrapPanel HorizontalAlignment="Center">
-            <Button Margin="10" x:Name="btnEquals" Content="EQUALS" Height="30" Width="90" Click="Equals_Click"/>
-            <Button Margin="10" x:Name="btnNotEquals" Content="NOT EQUALS" Height="30" Width="90" Click="NotEquals_Click"/>
+            <Button Margin="10" x:Name="btnEquals" Content="EQUALS" Height="30" Width="90" Click="Equals_Click" Background="Green" />
+            <Button Margin="10" x:Name="btnNotEquals" Content="NOT EQUALS" Height="30" Width="90" Click="NotEquals_Click" Background="Red"/>
         </WrapPanel>
+        
     </StackPanel>
 </Window>

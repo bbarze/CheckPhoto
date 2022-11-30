@@ -24,6 +24,9 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.Tab;
+using static Microsoft.WindowsAPICodePack.Shell.PropertySystem.SystemProperties.System;
+using System.Drawing.Imaging;
+using FFMpegCore;
 
 namespace CheckPhoto
 {
@@ -46,12 +49,13 @@ namespace CheckPhoto
         }
     }
 
-
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window
     {
+        private const int DIM_BITMAP = 512;
+
         /// <summary>
         /// Calculate the SHA256 of the file passed
         /// </summary>
@@ -74,28 +78,40 @@ namespace CheckPhoto
         }
 
         /// <summary>
+        /// Get the executable's Directory
+        /// </summary>
+        private static string AssemblyDirectory
+        {
+            get
+            {
+                string codeBase = Assembly.GetExecutingAssembly().CodeBase;
+                UriBuilder uri = new UriBuilder(codeBase);
+                string path = Uri.UnescapeDataString(uri.Path);
+                return System.IO.Path.GetDirectoryName(path);
+            }
+        }
+
+        /// <summary>
         /// Compress the image and convert to black and white. Put the result inside a list
         /// </summary>
         /// <param name="bmpSource"></param>
         /// <returns></returns>
-        private static List<bool> GetHash(String bmpSource)
+        private static List<bool> GetHash(Bitmap bmpSource)
         {
             List<bool> lResult = new List<bool>();
-            //create new image with 16x16 pixel
-            using (Bitmap bmpMax = new Bitmap(bmpSource))
+            //create new image with TxH pixel
+
+            using (Bitmap bmpMin = new Bitmap(bmpSource, new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP)))
             {
-                using (Bitmap bmpMin = new Bitmap(bmpMax, new System.Drawing.Size(256, 256)))
+                for (int j = 0; j < bmpMin.Height; j++)
                 {
-                    for (int j = 0; j < bmpMin.Height; j++)
+                    for (int i = 0; i < bmpMin.Width; i++)
                     {
-                        for (int i = 0; i < bmpMin.Width; i++)
-                        {
-                            //reduce colors to true / false                
-                            lResult.Add(bmpMin.GetPixel(i, j).GetBrightness() < 0.5f);
-                        }
+                        //reduce colors to true / false                
+                        lResult.Add(bmpMin.GetPixel(i, j).GetBrightness() < 0.5f);
                     }
-                    return lResult;
                 }
+                return lResult;
             }
         }
 
@@ -117,6 +133,37 @@ namespace CheckPhoto
         private static bool IsVideo(String fileName)
         {
             return fileName.ToLower().EndsWith(".mp4") || fileName.ToLower().EndsWith(".avi");
+        }
+
+        /// <summary>
+        /// Return the duration of the video passed as parameter
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <returns></returns>
+        private static TimeSpan GetVideoDuration(string filePath)
+        {
+            using (var shell = ShellObject.FromParsingName(filePath))
+            {
+                IShellProperty prop = shell.Properties.System.Media.Duration;
+                var t = (ulong)prop.ValueAsObject;
+                return TimeSpan.FromTicks((long)t);
+            }
+        }
+
+        /// <summary>
+        /// Calculate the Similarity between two images
+        /// </summary>
+        /// <param name="img1"></param>
+        /// <param name="img2"></param>
+        /// <returns></returns>
+        private double GetPhotoSimilarity(Bitmap img1, Bitmap img2)
+        {
+            List<bool> iHashNew = GetHash(img1);
+            List<bool> iHashOld = GetHash(img2);
+            int maxElement = Math.Max(iHashOld.Count, iHashNew.Count);
+            int equalElements = iHashNew.Zip(iHashOld, (i, j) => i == j).Count(eq => eq);
+            double similarity = 100 * equalElements / maxElement;
+            return similarity;
         }
 
         private static String GetFileName(String fileName)
@@ -144,12 +191,12 @@ namespace CheckPhoto
         /// <summary>
         /// Used to redirect through log4net console log to String List
         /// </summary>
-        CustomTextWriter logWriter;
+        private CustomTextWriter logWriter;
 
         /// <summary>
         /// Timer used to print on UI logs
         /// </summary>
-        DispatcherTimer logDispatcherTimer;
+        private DispatcherTimer logDispatcherTimer;
 
         public MainWindow()
         {
@@ -177,7 +224,7 @@ namespace CheckPhoto
                 Console.SetOut(logWriter);
 
                 logDispatcherTimer = new System.Windows.Threading.DispatcherTimer();
-                logDispatcherTimer.Tick += new EventHandler(dispatcherTimer_Tick);
+                logDispatcherTimer.Tick += new EventHandler(dispatcherTimerLog_Tick);
                 logDispatcherTimer.Interval = new TimeSpan(0, 0, 5);
                 logDispatcherTimer.Start();
 
@@ -190,12 +237,65 @@ namespace CheckPhoto
             }
         }
 
+        #region CHECK_EXE
+
+        private bool IsExternalExeOKay()
+        {
+            if (CheckExternalExe("ffmpeg") && CheckExternalExe("ffprobe") && CheckExternalExe("ffplay"))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        private bool CheckExternalExe(String appName)
+        {
+            try
+            {
+                String exeExtension = ".exe";
+                String zipExtension = ".zip";
+
+                String appPath = System.IO.Path.Combine(@AssemblyDirectory, appName + exeExtension);
+
+                if (!File.Exists(appPath))
+                {
+                    String zipPath = System.IO.Path.Combine(@AssemblyDirectory, appName + zipExtension);
+                    if (!File.Exists(zipPath))
+                    {
+                        String msg = $"Unable to find {appName} executable or zip file";
+                        MessageBox.Show(msg);
+                        return false;
+                    }
+                    else
+                    {
+                        log.Info($"Extacting {zipPath}");
+                        System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, @AssemblyDirectory);
+                    }
+                }
+                else
+                {
+                    log.Debug($"The executable {appName} already exist in {@AssemblyDirectory}");
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+                return false;
+            }
+        }
+
+        #endregion CHECK_EXE
+
+        #region LOG
+
         /// <summary>
         /// Manage log to UI
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void dispatcherTimer_Tick(object sender, EventArgs e)
+        private void dispatcherTimerLog_Tick(object sender, EventArgs e)
         {
             List<String> newLogs = logWriter.sList.ToList();
 
@@ -225,6 +325,8 @@ namespace CheckPhoto
             lvLog.ScrollIntoView(lvLog.SelectedItem);
 
         }
+
+        #endregion LOG
 
         /// <summary>
         /// If the file that is passed already exist in target folder, it will be deleted. 
@@ -268,7 +370,7 @@ namespace CheckPhoto
 
                     if (same)
                     {
-                        log.Info($"{f2Check} will be deleted becouse of is identcal to {fExisting}");
+                        log.Info($"{f2Check} will be deleted becouse of it is identcal to {fExisting}");
                         duplicatedIdentical++;
                         FileSystem.DeleteFile(f2Check, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
                         return;
@@ -280,12 +382,7 @@ namespace CheckPhoto
                     foreach (string fExisting in existingFile)
                     {
 
-                        List<bool> iHashNew = GetHash(f2Check);
-                        List<bool> iHashOld = GetHash(fExisting);
-                        int maxElement = Math.Max(iHashOld.Count, iHashNew.Count);
-                        int equalElements = iHashNew.Zip(iHashOld, (i, j) => i == j).Count(eq => eq);
-                        double similarity = 100 * equalElements / maxElement;
-
+                        double similarity = GetPhotoSimilarity(new Bitmap(f2Check), new Bitmap(fExisting));
                         log.Info($"{f2Check} is {similarity}% similar to {fExisting}");
 
                         if (similarity < lowerLimit && skipControlBecouseDifferent)
@@ -297,7 +394,7 @@ namespace CheckPhoto
                         // if are similar more than the limit and skip is true -> do not show the dialog
                         if (similarity < upperLimit || !skipControlBecouseEquals)
                         {
-                            if (!MineDialogResult(f2Check, fExisting, similarity))
+                            if (!MineDialogResult(f2Check, fExisting, similarity, true))
                             {
                                 break;
                             }
@@ -327,6 +424,7 @@ namespace CheckPhoto
                 {
                     foreach (string fExisting in existingFile)
                     {
+
                         TimeSpan duration2Check = GetVideoDuration(f2Check);
                         TimeSpan durationExist = GetVideoDuration(fExisting);
 
@@ -336,8 +434,33 @@ namespace CheckPhoto
                             break;
                         }
 
-                        log.Info($"The duration of both file is {duration2Check.ToString("HH:ss:mmm")}");
+                        log.Info($"The duration of both file is " + duration2Check.ToString(@"hh\:mm\:ss"));
 
+                        int n = 5;
+
+                        double tDivided = duration2Check.TotalMilliseconds / n;
+
+                        double tSimilarity = 0;
+
+                        //int j = 0;
+                        for (double i = 1; i < duration2Check.TotalMilliseconds; i = i + tDivided)
+                        {
+
+                            Bitmap b2Check = FFMpeg.Snapshot(f2Check, new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP), TimeSpan.FromMilliseconds(i));
+
+                            Bitmap bExisting = FFMpeg.Snapshot(fExisting, new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP), TimeSpan.FromMilliseconds(i));
+
+                            double similarity = GetPhotoSimilarity(b2Check, bExisting);
+
+                            tSimilarity = tSimilarity + similarity;
+
+                            log.Info($"{f2Check} is {similarity}% similar to {fExisting} at millisecond {i}");
+
+                            //FFMpeg.Snapshot(f2Check, System.IO.Path.Combine(AssemblyDirectory, "" + j + ".png"), new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP), TimeSpan.FromMilliseconds(i));
+                            //j++;
+                        }
+
+                        bool r = MineDialogResult(f2Check, fExisting, tSimilarity / n, false);
 
 
                     }
@@ -354,15 +477,6 @@ namespace CheckPhoto
             }
         }
 
-        private static TimeSpan GetVideoDuration(string filePath)
-        {
-            using (var shell = ShellObject.FromParsingName(filePath))
-            {
-                IShellProperty prop = shell.Properties.System.Media.Duration;
-                var t = (ulong)prop.ValueAsObject;
-                return TimeSpan.FromTicks((long)t);
-            }
-        }
 
         /// <summary>
         /// Start the comparison of the files present in source folder.
@@ -455,13 +569,13 @@ namespace CheckPhoto
         /// <param name="fExisting">File present inside target folder</param>
         /// <param name="similarity">Similarity calculated between the two file</param>
         /// <returns>True if the two file are the same else false</returns>
-        private bool MineDialogResult(String f2Check, String fExisting, double similarity)
+        private bool MineDialogResult(String f2Check, String fExisting, double similarity, bool isImg)
         {
             try
             {
                 return Application.Current.Dispatcher.Invoke(() =>
                 {
-                    CompareWindow cw = new CompareWindow(f2Check, fExisting, similarity);
+                    CompareWindow cw = new CompareWindow(f2Check, fExisting, similarity, isImg);
                     cw.ShowDialog();
                     if (!cw.DialogResult.HasValue || !cw.DialogResult.Value)
                     {
@@ -491,6 +605,11 @@ namespace CheckPhoto
                 {
                     log.Warn("Is already working!");
                     MessageBox.Show($"Is already working!");
+                    return;
+                }
+
+                if (!IsExternalExeOKay())
+                {
                     return;
                 }
 
@@ -610,16 +729,7 @@ namespace CheckPhoto
             //TODO cerca i file duplicati
         }
 
-        public static string AssemblyDirectory
-        {
-            get
-            {
-                string codeBase = Assembly.GetExecutingAssembly().CodeBase;
-                UriBuilder uri = new UriBuilder(codeBase);
-                string path = Uri.UnescapeDataString(uri.Path);
-                return System.IO.Path.GetDirectoryName(path);
-            }
-        }
+
 
         private void btnSaveSetting_Click(object sender, RoutedEventArgs e)
         {
