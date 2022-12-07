@@ -25,6 +25,7 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using System.Drawing.Imaging;
 using FFMpegCore;
+using Newtonsoft.Json;
 
 namespace CheckPhoto
 {
@@ -162,12 +163,6 @@ namespace CheckPhoto
             int equalElements = iHashNew.Zip(iHashOld, (i, j) => i == j).Count(eq => eq);
             double similarity = 100 * equalElements / maxElement;
             return similarity;
-        }
-
-        private static String GetFileName(String fileName)
-        {
-            FileInfo fi = new FileInfo(fileName);
-            return fi.Name;
         }
 
         private static long GetFileSize(String fileName)
@@ -326,367 +321,23 @@ namespace CheckPhoto
 
         #endregion MANAGE_UI_LOG
 
-        /// <summary>
-        /// If the file that is passed already exist in target folder, it will be deleted. 
-        /// If exist a similar one will be asked to user if the two file are the same.
-        /// </summary>
-        /// <param name="f2Check">File that will be checked</param>
-        /// <param name="pathTarget">Target path</param>
-        /// <param name="upperLimit"></param>
-        /// <param name="skipControlBecouseEquals"></param>
-        /// <param name="lowerLimit"></param>
-        /// <param name="skipControlBecouseDifferent"></param>
-        /// <param name="duplicatedIdentical">Counter for statistical porpouse. Identical file found and deleted from source folder</param>
-        /// <param name="deletedSource">Counter for statistical porpouse. File from source is similar to file in target but has less resolution so deleted</param>
-        /// <param name="movedFromSource2Target">Counter for statistical porpouse. File from source is similar to file in target but has grater resolution so replace the file in target</param>
-        private void CheckFile(String f2Check, String pathTarget,
-            double upperLimit, bool skipControlBecouseEquals,
-            double lowerLimit, bool skipControlBecouseDifferent,
-            ref long duplicatedIdentical, ref long deletedSource, ref long movedFromSource2Target)
-        {
-            try
-            {
-                string f2CheckName = GetFileName(f2Check);
-
-                int cnt = Directory.GetFiles(pathTarget, f2CheckName, System.IO.SearchOption.AllDirectories).Count();
-
-                if (cnt <= 0)
-                {
-                    log.Info($"Inside {pathTarget} there are no file named {f2CheckName}");
-                    return;
-                }
-
-                String[] existingFile = Directory.GetFiles(pathTarget, f2CheckName, System.IO.SearchOption.AllDirectories);
-
-                //La prima iterazione viene utilizzata per controllare se c'è un file identico!
-                foreach (string fExisting in existingFile)
-                {
-                    // Check identical file
-                    byte[] hash1 = Sha256HashFile(fExisting);
-                    byte[] hash2 = Sha256HashFile(f2Check);
-                    bool same = hash1.SequenceEqual(hash2);
-
-                    if (same)
-                    {
-                        log.Info($"{f2Check} will be deleted becouse of it is identcal to {fExisting}");
-                        duplicatedIdentical++;
-                        FileSystem.DeleteFile(f2Check, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
-                        return;
-                    }
-                }
-
-                if (IsPhoto(f2Check))
-                {
-                    foreach (string fExisting in existingFile)
-                    {
-
-                        double similarity = GetPhotoSimilarity(new Bitmap(f2Check), new Bitmap(fExisting));
-                        log.Info($"{f2Check} is {similarity}% similar to {fExisting}");
-
-                        if (similarity < lowerLimit && skipControlBecouseDifferent)
-                        {
-                            log.Info($"Will be conisdered as different! lowerLimit={lowerLimit}!");
-                            break;
-                        }
-
-                        // if are similar more than the limit and skip is true -> do not show the dialog
-                        if (similarity < upperLimit || !skipControlBecouseEquals)
-                        {
-                            if (!MineDialogResult(f2Check, fExisting, similarity, true, false))
-                            {
-                                break;
-                            }
-                        }
-
-                        ManageSimilarItems(f2Check, fExisting, out bool imfs2t, out bool ids);
-
-                        if (imfs2t)
-                        {
-                            movedFromSource2Target++;
-                        }
-                        else if (ids)
-                        {
-                            deletedSource++;
-                        }
-
-                    }
-                }
-                else if (IsVideo(f2Check))
-                {
-                    foreach (string fExisting in existingFile)
-                    {
-
-                        TimeSpan duration2Check = GetVideoDuration(f2Check);
-                        TimeSpan durationExist = GetVideoDuration(fExisting);
-
-                        bool millisecondDiff = false;
-
-                        if (Math.Round(duration2Check.TotalSeconds) != Math.Round(durationExist.TotalSeconds))
-                        {
-                            log.Info($"The duration is not matching on seconds, will be conisdered as different!");
-                            break;
-                        }
-
-                        if (duration2Check != durationExist)
-                        {
-                            log.Warn($"The duration on millisecond do not match: {duration2Check.ToString(@"hh\:mm\:ss\.fff")} ---  {durationExist.ToString(@"hh\:mm\:ss\.fff")}");
-                            millisecondDiff = true;
-                        }
-
-                        log.Info($"The duration of both file is " + duration2Check.ToString(@"hh\:mm\:ss"));
-
-                        int n = 5;
-
-                        double tDivided = duration2Check.TotalMilliseconds / n;
-
-                        double tSimilarity = 0;
-
-                        //int j = 0;
-                        for (double i = 1; i < duration2Check.TotalMilliseconds; i = i + tDivided)
-                        {
-
-                            Bitmap b2Check = FFMpeg.Snapshot(f2Check, new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP), TimeSpan.FromMilliseconds(i));
-
-                            Bitmap bExisting = FFMpeg.Snapshot(fExisting, new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP), TimeSpan.FromMilliseconds(i));
-
-                            double similarity = GetPhotoSimilarity(b2Check, bExisting);
-
-                            tSimilarity = tSimilarity + similarity;
-
-                            log.Info($"{f2Check} is {similarity}% similar to {fExisting} at millisecond {i}");
-
-                            //FFMpeg.Snapshot(f2Check, System.IO.Path.Combine(AssemblyDirectory, "" + j + ".png"), new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP), TimeSpan.FromMilliseconds(i));
-                            //j++;
-                        }
-
-                        tSimilarity = tSimilarity / n;
-
-                        log.Info($"{f2Check} is {tSimilarity}% similar to {fExisting}");
-
-                        if (!MineDialogResult(f2Check, fExisting, tSimilarity, false, millisecondDiff))
-                        {
-                            break;
-                        }
-
-                        ManageSimilarItems(f2Check, fExisting, out bool vmfs2t, out bool vds);
-                        if (vmfs2t)
-                        {
-                            movedFromSource2Target++;
-                        }
-                        else if (vds)
-                        {
-                            deletedSource++;
-                        }
-
-                    }
-                }
-                else
-                {
-                    log.Info($"{f2Check} is not a photo and is not a video!");
-                    return;
-                }
-            }
-            catch (Exception ex)
-            {
-                log.Error(ex);
-            }
-        }
+        #region UTILS
 
         /// <summary>
-        /// Given two similar items will manage them. 
-        /// If the biggest one is the new one: will be replaced the old 
-        /// If the biggest one is the old one: will be deleted the new one
+        /// Show the FolderBrowserDialog to choose a folder
         /// </summary>
-        /// <param name="f2Check"></param>
-        /// <param name="fExisting"></param>
-        /// <param name="movedFromSource2Target"></param>
-        /// <param name="deletedSource"></param>
-        private void ManageSimilarItems(String f2Check, String fExisting, out bool movedFromSource2Target, out bool deletedSource)
+        /// <returns>The path of the folder choosed</returns>
+        private static String GetFolderPath()
         {
-            movedFromSource2Target = false;
-            deletedSource = false;
-
-            //The images are similar, manage it
-            if (GetFileSize(f2Check) > GetFileSize(fExisting))
+            using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
             {
-                //Il nuovo file ha risoluzione maggiore, si sostituisce il vecchio col nuovo
-                log.Info($"New file [{f2Check}] is bigger then the old one [{fExisting}]. The old one will be replaced");
-                FileSystem.DeleteFile(fExisting, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
-                File.Move(f2Check, fExisting);
-                movedFromSource2Target = true;
-                return;
-            }
-            else
-            {
-                //Il nuovo file ha risoluzione minore, va eliminato
-                FileSystem.DeleteFile(f2Check, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
-                log.Info($"New file is smaller than the new one. So {f2Check} will be deleted.");
-                deletedSource = true;
-                return;
-            }
-        }
-
-
-        /// <summary>
-        /// Start the comparison of the files present in source folder.
-        /// The comparison is made by filename
-        /// </summary>
-        /// <param name="pathSource">Source path</param>
-        /// <param name="pathTarget">Target path</param>
-        /// <param name="upperLimit"></param>
-        /// <param name="skipControlBecouseEquals"></param>
-        /// <param name="lowerLimit"></param>
-        /// <param name="skipControlBecouseDifferent"></param>
-        void RunIt(String pathSource, String pathTarget,
-            double upperLimit, bool skipControlBecouseEquals,
-            double lowerLimit, bool skipControlBecouseDifferent)
-        {
-
-            long duplicatedIdentical = 0;
-            long deletedSource = 0;
-            long movedFromSource2Target = 0;
-            long totItems = 0;
-            long iItems = 0;
-
-            try
-            {
-                log.Info("######################################################");
-                log.Info("Started!");
-
-                if (!Directory.Exists(pathSource))
+                System.Windows.Forms.DialogResult result = dialog.ShowDialog();
+                if (result == System.Windows.Forms.DialogResult.OK)
                 {
-                    log.Error($"PATH: {pathSource} doesn't exist");
-                    JobFinished();
-                    return;
+                    return dialog.SelectedPath;
                 }
-                if (!Directory.Exists(pathTarget))
-                {
-                    log.Error($"PATH: {pathTarget} doesn't exist");
-                    JobFinished();
-                    return;
-                }
-
-                String[] fileEntries = Directory.GetFiles(pathSource, "*", System.IO.SearchOption.AllDirectories);
-
-                totItems = fileEntries.Count();
-
-                foreach (string f2Check in fileEntries)
-                {
-                    iItems++;
-
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        pb.Value = (totItems / 100) * iItems;
-                    });
-
-                    log.Info($" ---------------------------------- [{iItems}/{totItems}] {pathTarget}  ---------------------------------- ");
-
-                    CheckFile(f2Check, pathTarget, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent,
-                        ref duplicatedIdentical, ref deletedSource, ref movedFromSource2Target);
-                }
-
             }
-            catch (Exception ex)
-            {
-                log.Error(ex);
-            }
-
-            log.Info("END: ");
-            log.Info("deleted identical: " + duplicatedIdentical);
-            log.Info("deleted from folder to check: " + deletedSource);
-            log.Info("replaced (moved from folder to check): " + movedFromSource2Target);
-
-            JobFinished();
-
-        }
-
-        private void JobFinished()
-        {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                isWorking = false;
-                btnCheck.IsEnabled = true;
-                pb.Value = 0;
-                MessageBox.Show($"END");
-            });
-        }
-
-        /// <summary>
-        /// Showned an instance of CompareWindow, so the user can said if two images are the same thing or not 
-        /// </summary>
-        /// <param name="f2Check">File present inside source folder</param>
-        /// <param name="fExisting">File present inside target folder</param>
-        /// <param name="similarity">Similarity calculated between the two file</param>
-        /// <returns>True if the two file are the same else false</returns>
-        private bool MineDialogResult(String f2Check, String fExisting, double similarity, bool isImg, bool warn)
-        {
-            try
-            {
-                return Application.Current.Dispatcher.Invoke(() =>
-                {
-                    CompareWindow cw = new CompareWindow(f2Check, fExisting, similarity, isImg, warn);
-                    cw.ShowDialog();
-                    if (!cw.DialogResult.HasValue || !cw.DialogResult.Value)
-                    {
-                        return false;
-                    }
-                    return true;
-                });
-            }
-            catch (Exception e)
-            {
-                log.Error(e);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Clicked the button to start the comparison inside a thread
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        void btnCheck_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-
-                if (isWorking)
-                {
-                    log.Warn("Is already working!");
-                    MessageBox.Show($"Is already working!");
-                    return;
-                }
-
-                if (!IsExternalExeOKay())
-                {
-                    return;
-                }
-
-                isWorking = true;
-                btnCheck.IsEnabled = false;
-
-                String source = tbSource.Text;
-                String target = tbTarget.Text;
-
-                double upperLimit = Convert.ToDouble(tbULimit.Text);
-                bool skipControlBecouseEquals = cbULimit.IsChecked.Value;
-                double lowerLimit = Convert.ToDouble(tbLLimit.Text);
-                bool skipControlBecouseDifferent = cbLLimit.IsChecked.Value;
-
-                Thread processThread = new Thread(delegate ()
-                {
-                    RunIt(source, target, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent);
-                });
-                processThread.SetApartmentState(ApartmentState.STA);
-                processThread.IsBackground = true;
-                processThread.Start();
-
-            }
-            catch (Exception ex)
-            {
-                log.Error(ex);
-                JobFinished();
-            }
+            return String.Empty;
         }
 
         /// <summary>
@@ -718,6 +369,383 @@ namespace CheckPhoto
         }
 
         /// <summary>
+        /// Check if dir2 is a subfolder of dir1
+        /// </summary>
+        /// <param name="dir1"></param>
+        /// <param name="dir2"></param>
+        /// <returns></returns>
+        private bool IsSubdirectory(String dir1, String dir2)
+        {
+            DirectoryInfo di1 = new DirectoryInfo(dir1);
+            DirectoryInfo di2 = new DirectoryInfo(dir2);
+            bool isParent = false;
+            while (di2.Parent != null)
+            {
+                if (di2.Parent.FullName == di1.FullName)
+                {
+                    isParent = true;
+                    break;
+                }
+                else di2 = di2.Parent;
+            }
+            return isParent;
+        }
+
+        #endregion UTILS
+
+        /// <summary>
+        /// Check if the application is already working
+        /// If is not working set up the UI to work mode (disable the button and set the status)
+        /// </summary>
+        /// <returns></returns>
+        private bool IsWorking()
+        {
+            if (isWorking)
+            {
+                String msg = "Is already working!";
+                log.Warn(msg);
+                MessageBox.Show(msg);
+                return true;
+            }
+            else
+            {
+
+                isWorking = true;
+
+                btnCheck.IsEnabled = false;
+                btnFindDuplicate.IsEnabled = false;
+
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Reset the UI becouse of is not working anymore
+        /// </summary>
+        private void EndWork()
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                isWorking = false;
+                btnCheck.IsEnabled = true;
+                btnFindDuplicate.IsEnabled = true;
+                pb.Value = 0;
+                MessageBox.Show($"END");
+            });
+        }
+
+        /// <summary>
+        /// Calculate the similarity of two files (photos and/or videos). 
+        /// If needed will be showed as popup a CompareWindows
+        /// </summary>
+        /// <param name="f2Check">File that will be checked</param>
+        /// <param name="fLibrary">File from library</param>
+        /// <param name="upperLimit"></param>
+        /// <param name="skipControlBecouseEquals"></param>
+        /// <param name="lowerLimit"></param>
+        /// <param name="skipControlBecouseDifferent"></param>
+        /// <param name="similarity">Give as OUT the index of similarity calculated</param>
+        /// <returns>The result of the comparison, are similar or not</returns>
+        private bool AreSimilar(String f2Check, String fLibrary,
+            double upperLimit, bool skipControlBecouseEquals,
+            double lowerLimit, bool skipControlBecouseDifferent,
+            out double similarity)
+        {
+            similarity = 0;
+
+            try
+            {
+
+                // Check if identical file
+                byte[] hash1 = Sha256HashFile(fLibrary);
+                byte[] hash2 = Sha256HashFile(f2Check);
+                bool same = hash1.SequenceEqual(hash2);
+
+                if (same)
+                {
+                    log.Info($"{f2Check} will be deleted becouse of it is identcal to {fLibrary}");
+                    similarity = 100;
+                    return true;
+                }
+
+                if (IsPhoto(f2Check))
+                {
+                    similarity = GetPhotoSimilarity(new Bitmap(f2Check), new Bitmap(fLibrary));
+                    log.Info($"{f2Check} is {similarity}% similar to {fLibrary}");
+
+                    if (similarity < lowerLimit && skipControlBecouseDifferent)
+                    {
+                        log.Info($"Will be conisdered as different! lowerLimit={lowerLimit}!");
+                        return false;
+                    }
+
+                    // if are similar more than the limit and skip is true -> do not show the dialog
+                    if (similarity < upperLimit || !skipControlBecouseEquals)
+                    {
+                        if (!MineDialogResult(f2Check, fLibrary, similarity, true, false))
+                        {
+                            return false;
+                        }
+                    }
+
+                    return true;
+
+                }
+                else if (IsVideo(f2Check))
+                {
+
+                    TimeSpan duration2Check = GetVideoDuration(f2Check);
+                    TimeSpan durationExist = GetVideoDuration(fLibrary);
+
+                    bool millisecondDiff = false;
+
+                    if (Math.Round(duration2Check.TotalSeconds) != Math.Round(durationExist.TotalSeconds))
+                    {
+                        log.Info($"The duration is not matching on seconds, will be conisdered as different!");
+                        return false;
+                    }
+
+                    if (duration2Check != durationExist)
+                    {
+                        log.Warn($"The duration on millisecond do not match: {duration2Check.ToString(@"hh\:mm\:ss\.fff")} ---  {durationExist.ToString(@"hh\:mm\:ss\.fff")}");
+                        millisecondDiff = true;
+                    }
+
+                    log.Info($"The duration of both file is " + duration2Check.ToString(@"hh\:mm\:ss"));
+
+                    int n = 5;
+
+                    double tDivided = duration2Check.TotalMilliseconds / n;
+
+                    //int j = 0;
+                    for (double i = 1; i < duration2Check.TotalMilliseconds; i = i + tDivided)
+                    {
+
+                        Bitmap b2Check = FFMpeg.Snapshot(f2Check, new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP), TimeSpan.FromMilliseconds(i));
+
+                        Bitmap bExisting = FFMpeg.Snapshot(fLibrary, new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP), TimeSpan.FromMilliseconds(i));
+
+                        double similarityTemp = GetPhotoSimilarity(b2Check, bExisting);
+
+                        similarity = similarity + similarityTemp;
+
+                        log.Info($"{f2Check} is {similarityTemp}% similar to {fLibrary} at millisecond {i}");
+
+                        //FFMpeg.Snapshot(f2Check, System.IO.Path.Combine(AssemblyDirectory, "" + j + ".png"), new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP), TimeSpan.FromMilliseconds(i));
+                        //j++;
+                    }
+
+                    similarity = similarity / n;
+
+                    log.Info($"{f2Check} is {similarity}% similar to {fLibrary}");
+
+                    if (!MineDialogResult(f2Check, fLibrary, similarity, false, millisecondDiff))
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    log.Info($"{f2Check} is not a photo and is not a video!");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Shown an instance of CompareWindow, so the user can said if two file are the same thing or not 
+        /// </summary>
+        /// <param name="f2Check">File present inside source folder</param>
+        /// <param name="fExisting">File present inside target folder</param>
+        /// <param name="similarity">Similarity calculated between the two file</param>
+        /// <param name="isImg">Indicate if files are images otherwise are video</param>
+        /// <param name="warn">Indicate a warn on the calculation of similarity</param>
+        /// <returns>True if the two file are the same else false</returns>
+        private bool MineDialogResult(String f2Check, String fExisting, double similarity, bool isImg, bool warn)
+        {
+            try
+            {
+                return Application.Current.Dispatcher.Invoke(() =>
+                {
+                    CompareWindow cw = new CompareWindow(f2Check, fExisting, similarity, isImg, warn);
+                    cw.ShowDialog();
+                    if (!cw.DialogResult.HasValue || !cw.DialogResult.Value)
+                    {
+                        return false;
+                    }
+                    return true;
+                });
+            }
+            catch (Exception e)
+            {
+                log.Error(e);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Given two similar items will manage them. 
+        /// If the biggest one is the new one: will be replaced the old 
+        /// If the biggest one is the old one: will be deleted the new one
+        /// </summary>
+        /// <param name="f2Check"></param>
+        /// <param name="fExisting"></param>
+        /// <param name="movedFromSource2Target"></param>
+        /// <param name="deletedSource"></param>
+        private void ManageSimilarItems(String f2Check, String fExisting, out bool movedFromSource2Target, out bool deletedSource)
+        {
+            movedFromSource2Target = false;
+            deletedSource = false;
+
+            //The images are similar, manage it
+            if (GetFileSize(f2Check) > GetFileSize(fExisting))
+            {
+                //Il nuovo file ha risoluzione maggiore, si sostituisce il vecchio col nuovo
+                log.Info($"New file [{f2Check}] is bigger then the old one [{fExisting}]. The old one will be replaced");
+                FileSystem.DeleteFile(fExisting, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
+                File.Move(f2Check, fExisting);
+                movedFromSource2Target = true;
+                return;
+            }
+            else
+            {
+                //Il nuovo file ha risoluzione minore oppure è uguale, va eliminato
+                FileSystem.DeleteFile(f2Check, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
+                log.Info($"New file is smaller than the new one. So {f2Check} will be deleted.");
+                deletedSource = true;
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Will compare files (photos and video) from 2 folders. 
+        /// The comparison is name based and than similarity.
+        /// Similar file will be managed
+        /// </summary>
+        /// <param name="pathSource">Folder to check</param>
+        /// <param name="pathTarget">Library folder</param>
+        /// <param name="upperLimit"></param>
+        /// <param name="skipControlBecouseEquals"></param>
+        /// <param name="lowerLimit"></param>
+        /// <param name="skipControlBecouseDifferent"></param>
+        void CompareFiles(String pathSource, String pathTarget,
+           double upperLimit, bool skipControlBecouseEquals,
+           double lowerLimit, bool skipControlBecouseDifferent)
+        {
+
+            long duplicatedIdentical = 0;
+            long deletedSource = 0;
+            long movedFromSource2Target = 0;
+            long totItems = 0;
+            long iItems = 0;
+
+            try
+            {
+                log.Info("######################################################");
+                log.Info("Started!");
+
+                if (!Directory.Exists(pathSource))
+                {
+                    log.Error($"PATH: {pathSource} doesn't exist");
+                    EndWork();
+                    return;
+                }
+                if (!Directory.Exists(pathTarget))
+                {
+                    log.Error($"PATH: {pathTarget} doesn't exist");
+                    EndWork();
+                    return;
+                }
+
+                if (IsSubdirectory(pathSource, pathTarget) || IsSubdirectory(pathTarget, pathSource))
+                {
+                    log.Error($"{pathSource} and {pathTarget} are nested!");
+                    EndWork();
+                    return;
+                }
+
+                // Get all the file from the directory that must be checked
+                String[] fileEntries = Directory.GetFiles(pathSource, "*", System.IO.SearchOption.AllDirectories);
+
+                totItems = fileEntries.Count();
+
+                // Will be checked each file in the TO CHECK folder
+                foreach (string f2Check in fileEntries)
+                {
+                    iItems++;
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        pb.Value = (totItems / 100) * iItems;
+                    });
+
+                    log.Info($" ---------------------------------- [{iItems}/{totItems}] {pathTarget}  ---------------------------------- ");
+
+                    String fileName = new FileInfo(f2Check).Name;
+
+                    // Get all the files in library that has the same name
+                    String[] existingFile = Directory.GetFiles(pathTarget, fileName, System.IO.SearchOption.AllDirectories);
+
+                    if (existingFile.Count() <= 0)
+                    {
+                        log.Info($"Inside {pathTarget} there are no file named {fileName}");
+                        continue;
+                    }
+
+                    // For each file with the same name in the library will be checked if files are similar and than will be handled the situation
+                    foreach (String eFile in existingFile)
+                    {
+                        if (AreSimilar(f2Check, eFile, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent, out double similar))
+                        {
+                            if (similar == 100)
+                            {
+                                duplicatedIdentical++;
+                                FileSystem.DeleteFile(f2Check, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
+                            }
+                            else
+                            {
+                                ManageSimilarItems(f2Check, eFile, out bool mfs2t, out bool ds);
+                                if (mfs2t)
+                                {
+                                    movedFromSource2Target++;
+                                }
+                                else if (ds)
+                                {
+                                    deletedSource++;
+                                }
+                            }
+
+                        }
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+            }
+
+            log.Info("END: ");
+            log.Info("deleted identical: " + duplicatedIdentical);
+            log.Info("deleted from folder to check: " + deletedSource);
+            log.Info("replaced (moved from folder to check): " + movedFromSource2Target);
+
+            EndWork();
+
+        }
+
+        #region UI
+
+        /// <summary>
         /// Application closing
         /// </summary>
         /// <param name="sender"></param>
@@ -728,6 +756,11 @@ namespace CheckPhoto
             Environment.Exit(Environment.ExitCode);
         }
 
+        /// <summary>
+        /// Set the SOURCE folder (FOLDER TO CHECK)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void btnS_Click(object sender, RoutedEventArgs e)
         {
             String p = GetFolderPath();
@@ -737,19 +770,11 @@ namespace CheckPhoto
             }
         }
 
-        private static String GetFolderPath()
-        {
-            using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
-            {
-                System.Windows.Forms.DialogResult result = dialog.ShowDialog();
-                if (result == System.Windows.Forms.DialogResult.OK)
-                {
-                    return dialog.SelectedPath;
-                }
-            }
-            return String.Empty;
-        }
-
+        /// <summary>
+        /// Set the TARGET folder (LIBRARY)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void btnT_Click(object sender, RoutedEventArgs e)
         {
             String p = GetFolderPath();
@@ -759,6 +784,11 @@ namespace CheckPhoto
             }
         }
 
+        /// <summary>
+        /// Open the folder where the application is located
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void btnOpenFolder_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -774,10 +804,73 @@ namespace CheckPhoto
 
         private void btnFindDuplicate_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("TODO!");
-            //TODO cerca i file duplicati
+            try
+            {
+                if (IsWorking())
+                {
+                    return;
+                }
+
+                String target = tbTarget.Text;
+
+                if (!Directory.Exists(target))
+                {
+                    log.Error($"PATH: {target} doesn't exist");
+                    EndWork();
+                    return;
+                }
+
+                Dictionary<String, List<String>> duplicateDic = new Dictionary<string, List<string>>();
+
+                // Get all the file from the directory that must be checked
+                String[] files = Directory.GetFiles(target, "*", System.IO.SearchOption.AllDirectories);
+
+                foreach(String f in files)
+                {
+                    String fileName = new FileInfo(f).Name;
+
+                    if (duplicateDic.ContainsKey(fileName))
+                    {
+                        if (duplicateDic[fileName].Contains(f) == false)
+                        {
+                            duplicateDic[fileName].Add(f);
+                        }
+                    }
+                    else
+                    {
+                        List<string> list = new List<string>();
+                        list.Add(f);
+                        duplicateDic.Add(fileName, list);
+                    }
+                }
+
+                List<String> kItems = duplicateDic.Where(x => x.Value.Count > 1).Select(x=> x.Key).ToList();
+
+                log.Info($"Inside {target} are present {kItems.Count} names that are used by multiple files");
+
+                foreach(String iName in kItems)
+                {
+                    List<string> fileNameList = duplicateDic[iName];
+                    //TODO...
+                }
+
+                string jsonDuplicatedInfo = JsonConvert.SerializeObject(duplicateDic);
+
+                log.Debug(jsonDuplicatedInfo);
+
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+                EndWork();
+            }
         }
 
+        /// <summary>
+        /// Save all the settings
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void btnSaveSetting_Click(object sender, RoutedEventArgs e)
         {
             AddOrUpdateAppSettings("pathSourceNewPhoto", tbSource.Text);
@@ -787,5 +880,50 @@ namespace CheckPhoto
             AddOrUpdateAppSettings("doNotShowLowerThanLowerLimit", cbULimit.IsChecked.Value.ToString());
             AddOrUpdateAppSettings("lowerLimitPercentage", tbLLimit.Text);
         }
+
+        /// <summary>
+        /// Start the comparison inside a thread
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void btnCheck_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!IsExternalExeOKay())
+                {
+                    return;
+                }
+
+                if (IsWorking())
+                {
+                    return;
+                }
+
+                String source = tbSource.Text;
+                String target = tbTarget.Text;
+
+                double upperLimit = Convert.ToDouble(tbULimit.Text);
+                bool skipControlBecouseEquals = cbULimit.IsChecked.Value;
+                double lowerLimit = Convert.ToDouble(tbLLimit.Text);
+                bool skipControlBecouseDifferent = cbLLimit.IsChecked.Value;
+
+                Thread processThread = new Thread(delegate ()
+                {
+                    CompareFiles(source, target, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent);
+                });
+                processThread.SetApartmentState(ApartmentState.STA);
+                processThread.IsBackground = true;
+                processThread.Start();
+
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+                EndWork();
+            }
+        }
+
+        #endregion UI
     }
 }
