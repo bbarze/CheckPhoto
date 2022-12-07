@@ -6,45 +6,60 @@
         xmlns:local="clr-namespace:CheckPhoto"
         mc:Ignorable="d"
         Title="CompareWindow" Height="660" Width="800" WindowState="Maximized" Icon="comparing-2 - Copy.png">
-    <StackPanel>
+    
+    <Viewbox StretchDirection="Both" Stretch="Uniform" Margin="2" VerticalAlignment="Top">
         
-        <StackPanel Margin="30" x:Name="spVideoCmd">
+        <StackPanel>
+
             <WrapPanel HorizontalAlignment="Center">
-                <TextBlock Width="100" Margin="3" x:Name="lblProgressStatus">00:00:00</TextBlock>
-                <Slider MinWidth="500" Name="timelineSlider" ValueChanged="SeekToMediaPosition" />
-                <TextBlock Width="100" Margin="3" x:Name="lblTot" TextAlignment="Right">00:00:00</TextBlock>
+                <TextBlock HorizontalAlignment="Center" FontSize="22" Text="SIMILARITY: "/>
+                <TextBlock HorizontalAlignment="Center" FontSize="22" x:Name="tbSimilarity" FontWeight="Bold"/>
             </WrapPanel>
+
+            <StackPanel Margin="30" x:Name="spVideoCmd">
+                <WrapPanel HorizontalAlignment="Center">
+                    <TextBlock Width="100" Margin="3" x:Name="lblProgressStatus">00:00:00</TextBlock>
+                    <Slider Name="sliProgress" Thumb.DragStarted="sliProgress_DragStarted"  Thumb.DragCompleted="sliProgress_DragCompleted" ValueChanged="sliProgress_ValueChanged" MinWidth="500" />
+                    <TextBlock Width="100" Margin="3" x:Name="lblTot" TextAlignment="Right">00:00:00</TextBlock>
+                </WrapPanel>
+                <WrapPanel HorizontalAlignment="Center">
+                    <Button x:Name="btnPause" Content="PAUSE" Margin="5" Padding="10" Width="100" Click="btnPause_Click"/>
+                    <Button x:Name="btnStart" Content="START" Margin="5" Padding="10" Width="100" Click="btnStart_Click"/>
+                </WrapPanel>
+            </StackPanel>
+
             <WrapPanel HorizontalAlignment="Center">
-                <Button x:Name="btnPause" Content="PAUSE" Margin="5" Padding="10" Width="100" Click="btnPause_Click"/>
-                <Button x:Name="btnStart" Content="START" Margin="5" Padding="10" Width="100" Click="btnStart_Click"/>
+                <StackPanel Margin="10">
+                    <WrapPanel>
+                        <TextBlock Text="NEW:     " HorizontalAlignment="Center" FontSize="22"/>
+                        <TextBlock x:Name="tbNewSize" FontSize="22"/>
+                    </WrapPanel>
+                    <Image Width="300" x:Name="iNew" HorizontalAlignment="Center"/>
+                    <MediaElement Name="mePlayerN" LoadedBehavior="Manual" Stretch="None" />
+                    <ProgressBar Name="pbVolumeN" Width="100" Height="15" Maximum="1" Value="{Binding ElementName=mePlayerN, Path=Volume}" MouseWheel="pbVolumeN_MouseWheel" Margin="8" />
+                    <TextBox x:Name="tbNewPath" FontSize="15"/>
+                    <TextBlock x:Name="tbNewInfo" FontSize="15"/>
+                </StackPanel>
+                <StackPanel Margin="10">
+                    <WrapPanel>
+                        <TextBlock Text="OLD:     " HorizontalAlignment="Center" FontSize="22"/>
+                        <TextBlock x:Name="tbOldSize" FontSize="22"/>
+                    </WrapPanel>
+                    <Image Width="300" x:Name="iOld" HorizontalAlignment="Center"/>
+                    <MediaElement Name="mePlayerO" LoadedBehavior="Manual" Stretch="None" />
+                    <ProgressBar Name="pbVolumeO" Width="100" Height="15" Maximum="1" Value="{Binding ElementName=mePlayerO, Path=Volume}" MouseWheel="pbVolumeO_MouseWheel" Margin="8" />
+                    <TextBox x:Name="tbOldPath" FontSize="15"/>
+                    <TextBlock x:Name="tbOldInfo" FontSize="15"/>
+                </StackPanel>
             </WrapPanel>
+
+            <WrapPanel HorizontalAlignment="Center">
+                <Button Margin="8" x:Name="btnEquals" Content="EQUALS" Height="30" Width="90" Click="Equals_Click" Background="Green" />
+                <Button Margin="8" x:Name="btnNotEquals" Content="NOT EQUALS" Height="30" Width="90" Click="NotEquals_Click" Background="Red"/>
+            </WrapPanel>
+
         </StackPanel>
         
-        <WrapPanel HorizontalAlignment="Center">
-            <StackPanel Margin="20">
-                <TextBlock Text="NEW" HorizontalAlignment="Center"/>
-                <Image Width="300" x:Name="iNew" HorizontalAlignment="Center"/>
-                <MediaElement Width="300" x:Name="vNew" HorizontalAlignment="Center" MediaOpened="vNew_MediaOpened" LoadedBehavior="Manual" MediaEnded="vNew_MediaEnded"  />
-                <TextBox x:Name="tbNewPath"/>
-                <TextBlock x:Name="tbNewSize"/>
-                <TextBlock x:Name="tbNewInfo"/>
-            </StackPanel>
-            <StackPanel Margin="20">
-                <TextBlock Text="OLD" HorizontalAlignment="Center"/>
-                <Image Width="300" x:Name="iOld" HorizontalAlignment="Center"/>
-                <MediaElement Width="300" x:Name="vOld" HorizontalAlignment="Center" LoadedBehavior="Manual" />
-                <TextBox x:Name="tbOldPath"/>
-                <TextBlock x:Name="tbOldSize"/>
-                <TextBlock x:Name="tbOldInfo"/>
-            </StackPanel>
-        </WrapPanel>
-        
-        <TextBlock x:Name="tbSimilarity" HorizontalAlignment="Center"/>
-       
-        <WrapPanel HorizontalAlignment="Center">
-            <Button Margin="10" x:Name="btnEquals" Content="EQUALS" Height="30" Width="90" Click="Equals_Click" Background="Green" />
-            <Button Margin="10" x:Name="btnNotEquals" Content="NOT EQUALS" Height="30" Width="90" Click="NotEquals_Click" Background="Red"/>
-        </WrapPanel>
-        
-    </StackPanel>
+    </Viewbox>
+    
 </Window>

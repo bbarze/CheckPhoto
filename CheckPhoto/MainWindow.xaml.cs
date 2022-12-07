@@ -23,8 +23,6 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Tab;
-using static Microsoft.WindowsAPICodePack.Shell.PropertySystem.SystemProperties.System;
 using System.Drawing.Imaging;
 using FFMpegCore;
 
@@ -288,7 +286,7 @@ namespace CheckPhoto
 
         #endregion CHECK_EXE
 
-        #region LOG
+        #region MANAGE_UI_LOG
 
         /// <summary>
         /// Manage log to UI
@@ -326,7 +324,7 @@ namespace CheckPhoto
 
         }
 
-        #endregion LOG
+        #endregion MANAGE_UI_LOG
 
         /// <summary>
         /// If the file that is passed already exist in target folder, it will be deleted. 
@@ -394,30 +392,23 @@ namespace CheckPhoto
                         // if are similar more than the limit and skip is true -> do not show the dialog
                         if (similarity < upperLimit || !skipControlBecouseEquals)
                         {
-                            if (!MineDialogResult(f2Check, fExisting, similarity, true))
+                            if (!MineDialogResult(f2Check, fExisting, similarity, true, false))
                             {
                                 break;
                             }
                         }
 
-                        //The images are similar, manage it
-                        if (GetFileSize(f2Check) > GetFileSize(fExisting))
+                        ManageSimilarItems(f2Check, fExisting, out bool imfs2t, out bool ids);
+
+                        if (imfs2t)
                         {
-                            //Il nuovo file ha risoluzione maggiore, si sostituisce il vecchio col nuovo
-                            log.Info($"New file [{f2Check}] has a better resoluiton then the old one [{fExisting}]. The old one will be replaced");
-                            FileSystem.DeleteFile(fExisting, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
-                            File.Move(f2Check, fExisting);
                             movedFromSource2Target++;
-                            return;
                         }
-                        else
+                        else if (ids)
                         {
-                            //Il nuovo file ha risoluzione minore, va eliminato
-                            FileSystem.DeleteFile(f2Check, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
-                            log.Info($"New file has a lower or equal resolution than the new one. So {f2Check} will be deleted.");
                             deletedSource++;
-                            return;
                         }
+
                     }
                 }
                 else if (IsVideo(f2Check))
@@ -428,10 +419,18 @@ namespace CheckPhoto
                         TimeSpan duration2Check = GetVideoDuration(f2Check);
                         TimeSpan durationExist = GetVideoDuration(fExisting);
 
+                        bool millisecondDiff = false;
+
+                        if (Math.Round(duration2Check.TotalSeconds) != Math.Round(durationExist.TotalSeconds))
+                        {
+                            log.Info($"The duration is not matching on seconds, will be conisdered as different!");
+                            break;
+                        }
+
                         if (duration2Check != durationExist)
                         {
-                            log.Info($"The duration is different will be conisdered as different!");
-                            break;
+                            log.Warn($"The duration on millisecond do not match: {duration2Check.ToString(@"hh\:mm\:ss\.fff")} ---  {durationExist.ToString(@"hh\:mm\:ss\.fff")}");
+                            millisecondDiff = true;
                         }
 
                         log.Info($"The duration of both file is " + duration2Check.ToString(@"hh\:mm\:ss"));
@@ -460,8 +459,24 @@ namespace CheckPhoto
                             //j++;
                         }
 
-                        bool r = MineDialogResult(f2Check, fExisting, tSimilarity / n, false);
+                        tSimilarity = tSimilarity / n;
 
+                        log.Info($"{f2Check} is {tSimilarity}% similar to {fExisting}");
+
+                        if (!MineDialogResult(f2Check, fExisting, tSimilarity, false, millisecondDiff))
+                        {
+                            break;
+                        }
+
+                        ManageSimilarItems(f2Check, fExisting, out bool vmfs2t, out bool vds);
+                        if (vmfs2t)
+                        {
+                            movedFromSource2Target++;
+                        }
+                        else if (vds)
+                        {
+                            deletedSource++;
+                        }
 
                     }
                 }
@@ -474,6 +489,40 @@ namespace CheckPhoto
             catch (Exception ex)
             {
                 log.Error(ex);
+            }
+        }
+
+        /// <summary>
+        /// Given two similar items will manage them. 
+        /// If the biggest one is the new one: will be replaced the old 
+        /// If the biggest one is the old one: will be deleted the new one
+        /// </summary>
+        /// <param name="f2Check"></param>
+        /// <param name="fExisting"></param>
+        /// <param name="movedFromSource2Target"></param>
+        /// <param name="deletedSource"></param>
+        private void ManageSimilarItems(String f2Check, String fExisting, out bool movedFromSource2Target, out bool deletedSource)
+        {
+            movedFromSource2Target = false;
+            deletedSource = false;
+
+            //The images are similar, manage it
+            if (GetFileSize(f2Check) > GetFileSize(fExisting))
+            {
+                //Il nuovo file ha risoluzione maggiore, si sostituisce il vecchio col nuovo
+                log.Info($"New file [{f2Check}] is bigger then the old one [{fExisting}]. The old one will be replaced");
+                FileSystem.DeleteFile(fExisting, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
+                File.Move(f2Check, fExisting);
+                movedFromSource2Target = true;
+                return;
+            }
+            else
+            {
+                //Il nuovo file ha risoluzione minore, va eliminato
+                FileSystem.DeleteFile(f2Check, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
+                log.Info($"New file is smaller than the new one. So {f2Check} will be deleted.");
+                deletedSource = true;
+                return;
             }
         }
 
@@ -569,13 +618,13 @@ namespace CheckPhoto
         /// <param name="fExisting">File present inside target folder</param>
         /// <param name="similarity">Similarity calculated between the two file</param>
         /// <returns>True if the two file are the same else false</returns>
-        private bool MineDialogResult(String f2Check, String fExisting, double similarity, bool isImg)
+        private bool MineDialogResult(String f2Check, String fExisting, double similarity, bool isImg, bool warn)
         {
             try
             {
                 return Application.Current.Dispatcher.Invoke(() =>
                 {
-                    CompareWindow cw = new CompareWindow(f2Check, fExisting, similarity, isImg);
+                    CompareWindow cw = new CompareWindow(f2Check, fExisting, similarity, isImg, warn);
                     cw.ShowDialog();
                     if (!cw.DialogResult.HasValue || !cw.DialogResult.Value)
                     {
@@ -728,8 +777,6 @@ namespace CheckPhoto
             MessageBox.Show("TODO!");
             //TODO cerca i file duplicati
         }
-
-
 
         private void btnSaveSetting_Click(object sender, RoutedEventArgs e)
         {

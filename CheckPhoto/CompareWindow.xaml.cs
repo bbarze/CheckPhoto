@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
@@ -54,7 +55,7 @@ namespace CheckPhoto
         /// </summary>
         DispatcherTimer _timer = new DispatcherTimer();
 
-        public CompareWindow(String newFileName, String oldFileName, double similarity, bool isImg)
+        public CompareWindow(String newFileName, String oldFileName, double similarity, bool isImg, bool warn)
         {
             InitializeComponent();
 
@@ -64,9 +65,19 @@ namespace CheckPhoto
             {
                 tbSimilarity.Text = similarity + "%";
 
+                if (warn)
+                {
+                    tbSimilarity.Background = new SolidColorBrush(Colors.Red);
+
+                }
+
                 if (isImg)
                 {
                     spVideoCmd.Visibility = Visibility.Collapsed;
+                    mePlayerN.Visibility = Visibility.Collapsed;
+                    mePlayerO.Visibility = Visibility.Collapsed;
+                    pbVolumeN.Visibility = Visibility.Collapsed;
+                    pbVolumeO.Visibility = Visibility.Collapsed;
 
                     iNew.Source = GetImage(newFileName);
                     iOld.Source = GetImage(oldFileName);
@@ -90,13 +101,22 @@ namespace CheckPhoto
                 }
                 else
                 {
-                    vOld.Source = new Uri(oldFileName);
-                    vNew.Source = new Uri(newFileName);
+
+                    iNew.Visibility = Visibility.Collapsed;
+                    iOld.Visibility = Visibility.Collapsed;
+
+                    mePlayerN.Source = new Uri(newFileName);
+                    mePlayerO.Source = new Uri(oldFileName);
+
+                    btnPause.Visibility = Visibility.Collapsed;
 
                     _timer.Interval = TimeSpan.FromMilliseconds(60);
                     _timer.Tick += new EventHandler(ticktock);
+                    _timer.Start();
 
-                    PlayVideo();
+                    Play();
+
+
                 }
 
                 tbNewPath.Text = newFileName;
@@ -159,89 +179,76 @@ namespace CheckPhoto
 
         #region VIDEO
 
-        /// <summary>
-        /// Start the video
-        /// </summary>
-        void PlayVideo()
-        {
-            _timer.Start();
-            vOld.Play();
-            vNew.Play();
-
-            btnStart.Visibility = Visibility.Collapsed;
-            btnPause.Visibility = Visibility.Visible;
-        }
-
-        /// <summary>
-        /// Stop the video
-        /// </summary>
-        void PauseVideo()
-        {
-            vOld.Stop();
-            vNew.Stop();
-            _timer.Stop();
-
-            btnPause.Visibility = Visibility.Collapsed;
-            btnStart.Visibility = Visibility.Visible;
-        }
-
-        /// <summary>
-        /// Bind slider progress with video
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         void ticktock(object sender, EventArgs e)
         {
-            timelineSlider.Value = vNew.Position.TotalMilliseconds;
-        }
+            try
+            {
+                if ((mePlayerN.Source != null) && (mePlayerN.NaturalDuration.HasTimeSpan) && (!userIsDraggingSlider))
+                {
+                    sliProgress.Minimum = 0;
+                    sliProgress.Maximum = mePlayerN.NaturalDuration.TimeSpan.TotalSeconds;
+                    sliProgress.Value = mePlayerN.Position.TotalSeconds;
+                    lblTot.Text = mePlayerN.NaturalDuration.TimeSpan.ToString(@"hh\:mm\:ss");
 
-        /// <summary>
-        /// Set max value of slider
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void vNew_MediaOpened(object sender, RoutedEventArgs e)
-        {
-            timelineSlider.Maximum = vNew.NaturalDuration.TimeSpan.TotalMilliseconds;
-            lblTot.Text = TimeSpan.FromMilliseconds(timelineSlider.Maximum).ToString(@"hh\:mm\:ss\.fff");
-        }
+                    tbNewInfo.Text = $"{mePlayerN.NaturalVideoHeight}x{mePlayerN.NaturalVideoWidth} ({mePlayerN.NaturalDuration.TimeSpan.ToString(@"hh\:mm\:ss\.fff")})";
+                    tbOldInfo.Text = $"{mePlayerO.NaturalVideoHeight}x{mePlayerO.NaturalVideoWidth} ({mePlayerO.NaturalDuration.TimeSpan.ToString(@"hh\:mm\:ss\.fff")})";
 
-        /// <summary>
-        /// On media end stop 
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void vNew_MediaEnded(object sender, RoutedEventArgs e)
-        {
-            PauseVideo();
-        }
-
-        /// <summary>
-        /// Jump to different parts of the media (seek to).
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void SeekToMediaPosition(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            int SliderValue = (int)timelineSlider.Value;
-
-            lblProgressStatus.Text = TimeSpan.FromMilliseconds(timelineSlider.Value).ToString(@"hh\:mm\:ss\.fff");
-
-            // Overloaded constructor takes the arguments days, hours, minutes, seconds, milliseconds.
-            // Create a TimeSpan with miliseconds equal to the slider value.
-            TimeSpan ts = new TimeSpan(0, 0, 0, 0, SliderValue);
-            vNew.Position = ts;
-            vOld.Position = ts;
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+            }
         }
 
         private void btnPause_Click(object sender, RoutedEventArgs e)
         {
-            PauseVideo();
+            mePlayerN.Pause();
+            mePlayerO.Pause();
+            btnPause.Visibility = Visibility.Collapsed;
+            btnStart.Visibility = Visibility.Visible;
         }
 
         private void btnStart_Click(object sender, RoutedEventArgs e)
         {
-            PlayVideo();
+            Play();
+        }
+
+        private void Play()
+        {
+            mePlayerN.Play();
+            mePlayerO.Play();
+            btnPause.Visibility = Visibility.Visible;
+            btnStart.Visibility = Visibility.Collapsed;
+        }
+
+        private bool userIsDraggingSlider = false;
+
+        private void sliProgress_DragStarted(object sender, DragStartedEventArgs e)
+        {
+            userIsDraggingSlider = true;
+        }
+
+        private void sliProgress_DragCompleted(object sender, DragCompletedEventArgs e)
+        {
+            userIsDraggingSlider = false;
+            mePlayerN.Position = TimeSpan.FromSeconds(sliProgress.Value);
+            mePlayerO.Position = TimeSpan.FromSeconds(sliProgress.Value);
+        }
+
+        private void sliProgress_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            lblProgressStatus.Text = TimeSpan.FromSeconds(sliProgress.Value).ToString(@"hh\:mm\:ss");
+        }
+
+        private void pbVolumeN_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            mePlayerN.Volume += (e.Delta > 0) ? 0.1 : -0.1;
+        }
+
+        private void pbVolumeO_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            mePlayerO.Volume += (e.Delta > 0) ? 0.1 : -0.1;
         }
 
         #endregion VIDEO
