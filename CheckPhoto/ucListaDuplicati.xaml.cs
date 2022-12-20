@@ -69,18 +69,35 @@ namespace CheckPhoto
 
             String similarityText = String.Empty;
 
+            log.Warn("####");
+
             foreach (IEnumerable<String> c in result)
             {
-                MainWindow.AreSimilar(items[0], items[1], DuplicateWindow.upLimit, true, DuplicateWindow.lwLimit, true, true, out double similarity);
 
-                similarityText += $"{similarity} :: <{c.ElementAt(0)}> <{c.ElementAt(1)}>{System.Environment.NewLine}";
+                try
+                {
+
+                    if(MainWindow.AreSimilar(c.ElementAt(0), c.ElementAt(1), DuplicateWindow.upLimit, true, DuplicateWindow.lwLimit, true, true, out double similarity))
+                    {
+                        similarityText += $"{similarity} :: <{c.ElementAt(0)}> <{c.ElementAt(1)}>{System.Environment.NewLine}";
+                    }
+                    else
+                    {
+                        return;
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    log.Error(ex);
+                }
             }
 
             tbSimilarity.Text = similarityText;
 
         }
 
-   
+
 
         private void TextBlock_MouseDown(object sender, MouseButtonEventArgs e)
         {

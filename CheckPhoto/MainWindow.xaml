@@ -38,7 +38,7 @@
                     <Button x:Name="btnCheck" Content="CHECK" Click="btnCheck_Click" Width="100"/>
                 </StackPanel>
             </GroupBox>
-            <GroupBox Header="FIND DUPLICATE" Margin="5">
+            <GroupBox Header="FIND DUPLICATE IN LIBRARY" Margin="5">
                 <StackPanel>
                     <TextBlock Margin="15">
                         Check all the file present with the same name. <LineBreak/> <LineBreak/> 

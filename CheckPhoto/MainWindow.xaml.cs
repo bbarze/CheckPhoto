@@ -891,10 +891,9 @@ namespace CheckPhoto
                     duplicateDic.Remove(iName);
                 }
 
-                string jsonDuplicatedInfo = JsonConvert.SerializeObject(duplicateDic);
+                //string jsonDuplicatedInfo = JsonConvert.SerializeObject(duplicateDic);
 
-                log.Debug(jsonDuplicatedInfo);
-
+                //log.Debug(jsonDuplicatedInfo);
 
                 double upperLimit = Convert.ToDouble(tbULimit.Text);
                 double lowerLimit = Convert.ToDouble(tbLLimit.Text);
