@@ -6,7 +6,11 @@
              xmlns:local="clr-namespace:CheckPhoto"
              mc:Ignorable="d">
     <Grid>
-        <ListView x:Name="lvD" AlternationCount="2" SelectionMode="Single" IsSynchronizedWithCurrentItem="True" >
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <ListView x:Name="lvD" AlternationCount="2" Grid.Column="0" SelectionMode="Single" IsSynchronizedWithCurrentItem="True" >
             <ListView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <UniformGrid Columns="1"/>
@@ -20,5 +24,6 @@
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
+        <TextBlock VerticalAlignment="Center" Margin="10" Grid.Column="1" FontSize="15" x:Name="tbSimilarity" TextWrapping="Wrap" />
     </Grid>
 </UserControl>

@@ -155,7 +155,7 @@ namespace CheckPhoto
         /// <param name="img1"></param>
         /// <param name="img2"></param>
         /// <returns></returns>
-        private double GetPhotoSimilarity(Bitmap img1, Bitmap img2)
+        private static double GetPhotoSimilarity(Bitmap img1, Bitmap img2)
         {
             List<bool> iHashNew = GetHash(img1);
             List<bool> iHashOld = GetHash(img2);
@@ -190,6 +190,8 @@ namespace CheckPhoto
         /// Timer used to print on UI logs
         /// </summary>
         private DispatcherTimer logDispatcherTimer;
+
+       
 
         public MainWindow()
         {
@@ -447,7 +449,7 @@ namespace CheckPhoto
         /// <param name="skipControlAlways"></param>
         /// <param name="similarity">Give as OUT the index of similarity calculated</param>
         /// <returns>The result of the comparison, are similar or not</returns>
-        private bool AreSimilar(String f2Check, String fLibrary,
+        public static bool AreSimilar(String f2Check, String fLibrary,
             double upperLimit, bool skipControlBecouseEquals,
             double lowerLimit, bool skipControlBecouseDifferent,
             bool skipControlAlways,
@@ -465,7 +467,7 @@ namespace CheckPhoto
 
                 if (same)
                 {
-                    log.Info($"{f2Check} will be deleted becouse of it is identcal to {fLibrary}");
+                    log.Info($"{f2Check} is identcal to {fLibrary}");
                     similarity = 100;
                     return true;
                 }
@@ -606,7 +608,7 @@ namespace CheckPhoto
         /// <param name="isImg">Indicate if files are images otherwise are video</param>
         /// <param name="warn">Indicate a warn on the calculation of similarity</param>
         /// <returns>True if the two file are the same else false</returns>
-        private bool MineDialogResult(String f2Check, String fExisting, double similarity, bool isImg, bool warn)
+        private static bool MineDialogResult(String f2Check, String fExisting, double similarity, bool isImg, bool warn)
         {
             try
             {
@@ -893,9 +895,13 @@ namespace CheckPhoto
 
                 log.Debug(jsonDuplicatedInfo);
 
+
+                double upperLimit = Convert.ToDouble(tbULimit.Text);
+                double lowerLimit = Convert.ToDouble(tbLLimit.Text);
+
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    DuplicateWindow cw = new DuplicateWindow(duplicateDic);
+                    DuplicateWindow cw = new DuplicateWindow(duplicateDic, upperLimit, lowerLimit);
                     cw.ShowDialog();
                 });
 

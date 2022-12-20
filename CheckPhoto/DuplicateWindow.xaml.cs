@@ -21,11 +21,18 @@ namespace CheckPhoto
     public partial class DuplicateWindow : Window
     {
         static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        public DuplicateWindow(Dictionary<String, List<String>> duplicateDic)
+
+        public static double upLimit;
+        public static double lwLimit;
+
+        public DuplicateWindow(Dictionary<String, List<String>> duplicateDic, double upperLimit, double lowerLimit)
         {
             InitializeComponent();
 
             log.Info("Loading items...");
+
+            upLimit = upperLimit;
+            lwLimit = lowerLimit;
 
             lv.ItemsSource = duplicateDic;
         }
