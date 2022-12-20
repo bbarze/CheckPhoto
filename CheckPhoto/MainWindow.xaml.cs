@@ -444,11 +444,13 @@ namespace CheckPhoto
         /// <param name="skipControlBecouseEquals"></param>
         /// <param name="lowerLimit"></param>
         /// <param name="skipControlBecouseDifferent"></param>
+        /// <param name="skipControlAlways"></param>
         /// <param name="similarity">Give as OUT the index of similarity calculated</param>
         /// <returns>The result of the comparison, are similar or not</returns>
         private bool AreSimilar(String f2Check, String fLibrary,
             double upperLimit, bool skipControlBecouseEquals,
             double lowerLimit, bool skipControlBecouseDifferent,
+            bool skipControlAlways,
             out double similarity)
         {
             similarity = 0;
@@ -482,9 +484,23 @@ namespace CheckPhoto
                     // if are similar more than the limit and skip is true -> do not show the dialog
                     if (similarity < upperLimit || !skipControlBecouseEquals)
                     {
-                        if (!MineDialogResult(f2Check, fLibrary, similarity, true, false))
+                        if (!skipControlAlways)
                         {
-                            return false;
+                            if (!MineDialogResult(f2Check, fLibrary, similarity, true, false))
+                            {
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            if (similarity > lowerLimit)
+                            {
+                                return true;
+                            }
+                            else 
+                            { 
+                                return false; 
+                            }
                         }
                     }
 
@@ -539,13 +555,33 @@ namespace CheckPhoto
 
                     log.Info($"{f2Check} is {similarity}% similar to {fLibrary}");
 
-                    if (!MineDialogResult(f2Check, fLibrary, similarity, false, millisecondDiff))
+                    if (similarity < lowerLimit && skipControlBecouseDifferent)
                     {
+                        log.Info($"Will be conisdered as different! lowerLimit={lowerLimit}!");
                         return false;
+                    }
+
+                    if (!skipControlAlways)
+                    {
+                        if (!MineDialogResult(f2Check, fLibrary, similarity, false, millisecondDiff))
+                        {
+                            return false;
+                        }
+                        else
+                        {
+                            return true;
+                        }
                     }
                     else
                     {
-                        return true;
+                        if (similarity > lowerLimit)
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            return false;
+                        }
                     }
                 }
                 else
@@ -704,7 +740,7 @@ namespace CheckPhoto
                     // For each file with the same name in the library will be checked if files are similar and than will be handled the situation
                     foreach (String eFile in existingFile)
                     {
-                        if (AreSimilar(f2Check, eFile, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent, out double similar))
+                        if (AreSimilar(f2Check, eFile, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent, false, out double similar))
                         {
                             if (similar == 100)
                             {
@@ -825,7 +861,7 @@ namespace CheckPhoto
                 // Get all the file from the directory that must be checked
                 String[] files = Directory.GetFiles(target, "*", System.IO.SearchOption.AllDirectories);
 
-                foreach(String f in files)
+                foreach (String f in files)
                 {
                     String fileName = new FileInfo(f).Name;
 
@@ -844,19 +880,24 @@ namespace CheckPhoto
                     }
                 }
 
-                List<String> kItems = duplicateDic.Where(x => x.Value.Count > 1).Select(x=> x.Key).ToList();
+                List<String> kItems = duplicateDic.Where(x => x.Value.Count < 2).Select(x => x.Key).ToList();
 
                 log.Info($"Inside {target} are present {kItems.Count} names that are used by multiple files");
 
-                foreach(String iName in kItems)
+                foreach (String iName in kItems)
                 {
-                    List<string> fileNameList = duplicateDic[iName];
-                    //TODO...
+                    duplicateDic.Remove(iName);
                 }
 
                 string jsonDuplicatedInfo = JsonConvert.SerializeObject(duplicateDic);
 
                 log.Debug(jsonDuplicatedInfo);
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    DuplicateWindow cw = new DuplicateWindow(duplicateDic);
+                    cw.ShowDialog();
+                });
 
             }
             catch (Exception ex)

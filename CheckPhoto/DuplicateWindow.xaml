@@ -1,0 +1,26 @@
+﻿<Window x:Class="CheckPhoto.DuplicateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CheckPhoto"
+        mc:Ignorable="d"
+        Title="DuplicateWindow" Height="450" Width="800">
+    <Grid>
+        <ListView x:Name="lv" AlternationCount="2" VerticalAlignment="Top" HorizontalAlignment="Stretch" VerticalContentAlignment="Top" HorizontalContentAlignment="Left" SelectionMode="Single" IsSynchronizedWithCurrentItem="True" SelectionChanged="lv_SelectionChanged">
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="1"/>
+                </ItemsPanelTemplate>
+            </ListView.ItemsPanel>
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel VerticalAlignment="Top" Margin="7">
+                        <TextBlock Text="{Binding Key}" FontWeight="Bold" FontSize="20"/>
+                        <local:ucListaDuplicati Duplicati="{Binding Value}" VerticalContentAlignment="Bottom"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</Window>
