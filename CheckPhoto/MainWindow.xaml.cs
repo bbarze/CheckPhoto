@@ -958,6 +958,8 @@ namespace CheckPhoto
                 double upperLimit = Convert.ToDouble(tbULimit.Text);
                 double lowerLimit = Convert.ToDouble(tbLLimit.Text);
 
+                //TODO While is working chenage progress bar value
+                //TODO need to be done in another thread!
                 List<InspectionDuplicate> duplicateDic = GetDuplicate(target, upperLimit, lowerLimit);
 
                 Application.Current.Dispatcher.Invoke(() =>
@@ -965,6 +967,7 @@ namespace CheckPhoto
                     DuplicateWindow cw = new DuplicateWindow(duplicateDic, upperLimit, lowerLimit);
                     cw.ShowDialog();
                 });
+                //TODO on closing duplicate window call End Work
 
             }
             catch (Exception ex)
