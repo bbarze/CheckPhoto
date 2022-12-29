@@ -43,55 +43,20 @@ namespace CheckPhoto
             };
         }
 
-        static IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> items, int count)
-        {
-            int i = 0;
-            foreach (var item in items)
-            {
-                if (count == 1)
-                    yield return new T[] { item };
-                else
-                {
-                    foreach (var result in GetPermutations(items.Skip(i + 1), count - 1))
-                        yield return new T[] { item }.Concat(result);
-                }
-
-                ++i;
-            }
-        }
+        
 
 
         private void Init(List<String> items)
         {
             lvD.ItemsSource = items;
 
-            IEnumerable<IEnumerable<String>> result = GetPermutations(items, 2);
+            
 
             String similarityText = String.Empty;
 
             log.Warn("####");
 
-            foreach (IEnumerable<String> c in result)
-            {
-
-                try
-                {
-
-                    if(MainWindow.AreSimilar(c.ElementAt(0), c.ElementAt(1), DuplicateWindow.upLimit, true, DuplicateWindow.lwLimit, true, true, out double similarity))
-                    {
-                        similarityText += $"{similarity} :: <{c.ElementAt(0)}> <{c.ElementAt(1)}>{System.Environment.NewLine}";
-                    }
-                    else
-                    {
-                        return;
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    log.Error(ex);
-                }
-            }
+            
 
             tbSimilarity.Text = similarityText;
 

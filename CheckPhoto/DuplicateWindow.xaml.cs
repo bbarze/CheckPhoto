@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,7 +26,7 @@ namespace CheckPhoto
         public static double upLimit;
         public static double lwLimit;
 
-        public DuplicateWindow(Dictionary<String, List<String>> duplicateDic, double upperLimit, double lowerLimit)
+        public DuplicateWindow(List<InspectionDuplicate> duplicateItems, double upperLimit, double lowerLimit)
         {
             InitializeComponent();
 
@@ -34,12 +35,37 @@ namespace CheckPhoto
             upLimit = upperLimit;
             lwLimit = lowerLimit;
 
-            lv.ItemsSource = duplicateDic;
+            dgDuplicate.ItemsSource = duplicateItems;
         }
 
-        private void lv_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
 
+
+        private void dgDuplicate_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (dgDuplicate.SelectedCells.Count > 0)
+            {
+                InspectionDuplicate id = (InspectionDuplicate)dgDuplicate.SelectedCells[0].Item;
+
+                if (!File.Exists(id.FullFileName1))
+                {
+                    MessageBox.Show($"{id.FullFileName1} do not exist anymore");
+                    return;
+                }
+                if (!File.Exists(id.FullFileName2))
+                {
+                    MessageBox.Show($"{id.FullFileName2} do not exist anymore");
+                    return;
+                }
+
+                if (!MainWindow.MineDialogResult(id.FullFileName1, id.FullFileName2, id.Similarity, true, false))
+                {
+                    return;
+                }
+
+                MainWindow.ManageSimilarItems(id.FullFileName1, id.FullFileName2, out bool mfs2t, out bool ds);
+
+
+            }
         }
     }
 }

@@ -191,8 +191,6 @@ namespace CheckPhoto
         /// </summary>
         private DispatcherTimer logDispatcherTimer;
 
-       
-
         public MainWindow()
         {
             InitializeComponent();
@@ -499,9 +497,9 @@ namespace CheckPhoto
                             {
                                 return true;
                             }
-                            else 
-                            { 
-                                return false; 
+                            else
+                            {
+                                return false;
                             }
                         }
                     }
@@ -608,7 +606,7 @@ namespace CheckPhoto
         /// <param name="isImg">Indicate if files are images otherwise are video</param>
         /// <param name="warn">Indicate a warn on the calculation of similarity</param>
         /// <returns>True if the two file are the same else false</returns>
-        private static bool MineDialogResult(String f2Check, String fExisting, double similarity, bool isImg, bool warn)
+        public static bool MineDialogResult(String f2Check, String fExisting, double similarity, bool isImg, bool warn)
         {
             try
             {
@@ -639,7 +637,7 @@ namespace CheckPhoto
         /// <param name="fExisting"></param>
         /// <param name="movedFromSource2Target"></param>
         /// <param name="deletedSource"></param>
-        private void ManageSimilarItems(String f2Check, String fExisting, out bool movedFromSource2Target, out bool deletedSource)
+        public static void ManageSimilarItems(String f2Check, String fExisting, out bool movedFromSource2Target, out bool deletedSource)
         {
             movedFromSource2Target = false;
             deletedSource = false;
@@ -781,6 +779,105 @@ namespace CheckPhoto
 
         }
 
+        #region DUPLICATE
+
+        static IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> items, int count)
+        {
+            int i = 0;
+            foreach (var item in items)
+            {
+                if (count == 1)
+                    yield return new T[] { item };
+                else
+                {
+                    foreach (var result in GetPermutations(items.Skip(i + 1), count - 1))
+                        yield return new T[] { item }.Concat(result);
+                }
+
+                ++i;
+            }
+        }
+
+        List<InspectionDuplicate> GetDuplicate(String target, double upLimit, double lwLimit)
+        {
+            List<InspectionDuplicate> duplicatedCompared = new List<InspectionDuplicate>();
+
+            Dictionary<String, List<String>> duplicateDic = new Dictionary<string, List<string>>();
+
+            // Get all the file from the directory that must be checked
+            String[] files = Directory.GetFiles(target, "*", System.IO.SearchOption.AllDirectories);
+
+            foreach (String f in files)
+            {
+                String fileName = new FileInfo(f).Name;
+
+                if (duplicateDic.ContainsKey(fileName))
+                {
+                    if (duplicateDic[fileName].Contains(f) == false)
+                    {
+                        duplicateDic[fileName].Add(f);
+                    }
+                }
+                else
+                {
+                    List<string> list = new List<string>();
+                    list.Add(f);
+                    duplicateDic.Add(fileName, list);
+                }
+            }
+
+            List<String> kItems = duplicateDic.Where(x => x.Value.Count < 2).Select(x => x.Key).ToList();
+
+            log.Info($"Inside {target} are present {kItems.Count} names that are used by multiple files");
+
+            foreach (String iName in kItems)
+            {
+                duplicateDic.Remove(iName);
+            }
+
+            //string jsonDuplicatedInfo = JsonConvert.SerializeObject(duplicateDic);
+
+            //log.Debug(jsonDuplicatedInfo);
+
+            foreach (String key in duplicateDic.Keys)
+            {
+                List<String> items = duplicateDic[key];
+
+                IEnumerable<IEnumerable<String>> result = GetPermutations(items, 2);
+
+                foreach (IEnumerable<String> c in result)
+                {
+
+                    try
+                    {
+
+                        if (AreSimilar(c.ElementAt(0), c.ElementAt(1), upLimit, true, lwLimit, true, true, out double similarity))
+                        {
+                            InspectionDuplicate id = new InspectionDuplicate();
+                            id.Similarity = similarity;
+                            id.FullFileName1 = c.ElementAt(0);
+                            id.FullFileName2 = c.ElementAt(1);
+                            id.FileName = key;
+                            id.Extension = new FileInfo(c.ElementAt(0)).Extension;
+                            duplicatedCompared.Add(id);
+                        }
+
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Error(ex);
+                    }
+                }
+
+
+            }
+
+            return duplicatedCompared;
+
+        }
+
+        #endregion DUPLICATE
+
         #region UI
 
         /// <summary>
@@ -858,45 +955,10 @@ namespace CheckPhoto
                     return;
                 }
 
-                Dictionary<String, List<String>> duplicateDic = new Dictionary<string, List<string>>();
-
-                // Get all the file from the directory that must be checked
-                String[] files = Directory.GetFiles(target, "*", System.IO.SearchOption.AllDirectories);
-
-                foreach (String f in files)
-                {
-                    String fileName = new FileInfo(f).Name;
-
-                    if (duplicateDic.ContainsKey(fileName))
-                    {
-                        if (duplicateDic[fileName].Contains(f) == false)
-                        {
-                            duplicateDic[fileName].Add(f);
-                        }
-                    }
-                    else
-                    {
-                        List<string> list = new List<string>();
-                        list.Add(f);
-                        duplicateDic.Add(fileName, list);
-                    }
-                }
-
-                List<String> kItems = duplicateDic.Where(x => x.Value.Count < 2).Select(x => x.Key).ToList();
-
-                log.Info($"Inside {target} are present {kItems.Count} names that are used by multiple files");
-
-                foreach (String iName in kItems)
-                {
-                    duplicateDic.Remove(iName);
-                }
-
-                //string jsonDuplicatedInfo = JsonConvert.SerializeObject(duplicateDic);
-
-                //log.Debug(jsonDuplicatedInfo);
-
                 double upperLimit = Convert.ToDouble(tbULimit.Text);
                 double lowerLimit = Convert.ToDouble(tbLLimit.Text);
+
+                List<InspectionDuplicate> duplicateDic = GetDuplicate(target, upperLimit, lowerLimit);
 
                 Application.Current.Dispatcher.Invoke(() =>
                 {
