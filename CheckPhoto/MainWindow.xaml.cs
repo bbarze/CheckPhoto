@@ -463,6 +463,8 @@ namespace CheckPhoto
                 byte[] hash2 = Sha256HashFile(f2Check);
                 bool same = hash1.SequenceEqual(hash2);
 
+                //IsFileLocked(new FileInfo(f2Check));
+
                 if (same)
                 {
                     log.Info($"{f2Check} is identcal to {fLibrary}");
@@ -472,8 +474,17 @@ namespace CheckPhoto
 
                 if (IsPhoto(f2Check))
                 {
-                    similarity = GetPhotoSimilarity(new Bitmap(f2Check), new Bitmap(fLibrary));
+                    using (Bitmap b2Check = new Bitmap(f2Check))
+                    {
+                        using (Bitmap bLibrary = new Bitmap(fLibrary))
+                        {
+                            similarity = GetPhotoSimilarity(b2Check, bLibrary);
+                        }
+                    }
+
                     log.Info($"{f2Check} is {similarity}% similar to {fLibrary}");
+
+                    //IsFileLocked(new FileInfo(f2Check));
 
                     if (similarity < lowerLimit && skipControlBecouseDifferent)
                     {
@@ -628,6 +639,28 @@ namespace CheckPhoto
             }
         }
 
+        private static bool IsFileLocked(FileInfo file)
+        {
+            try
+            {
+                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
+                {
+                    stream.Close();
+                }
+            }
+            catch (IOException)
+            {
+                //the file is unavailable because it is:
+                //still being written to
+                //or being processed by another thread
+                //or does not exist (has already been processed)
+                return true;
+            }
+
+            //file is not locked
+            return false;
+        }
+
         /// <summary>
         /// Given two similar items will manage them. 
         /// If the biggest one is the new one: will be replaced the old 
@@ -645,6 +678,7 @@ namespace CheckPhoto
             //The images are similar, manage it
             if (GetFileSize(f2Check) > GetFileSize(fExisting))
             {
+
                 //Il nuovo file ha risoluzione maggiore, si sostituisce il vecchio col nuovo
                 log.Info($"New file [{f2Check}] is bigger then the old one [{fExisting}]. The old one will be replaced");
                 FileSystem.DeleteFile(fExisting, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
@@ -740,6 +774,9 @@ namespace CheckPhoto
                     // For each file with the same name in the library will be checked if files are similar and than will be handled the situation
                     foreach (String eFile in existingFile)
                     {
+
+                        //IsFileLocked(new FileInfo(f2Check));
+
                         if (AreSimilar(f2Check, eFile, upperLimit, skipControlBecouseEquals, lowerLimit, skipControlBecouseDifferent, false, out double similar))
                         {
                             if (similar == 100)
@@ -749,6 +786,8 @@ namespace CheckPhoto
                             }
                             else
                             {
+                                //IsFileLocked(new FileInfo(f2Check));
+
                                 ManageSimilarItems(f2Check, eFile, out bool mfs2t, out bool ds);
                                 if (mfs2t)
                                 {
