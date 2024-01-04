@@ -177,6 +177,8 @@ namespace CheckPhoto
             double countKO = 0;
             int treshold = 10;
 
+            //TODO controllare che non siano girate!
+
             if (img1.Width == img2.Width && img1.Height == img2.Height)
             {
                 for (int i = 0; i < img1.Width; i++)
@@ -195,8 +197,9 @@ namespace CheckPhoto
                         }
                     }
                 }
+                return 100*(countOK / (countOK + countKO));
             }
-            return 100*(countOK / (countOK + countKO));
+            return 0;
         }
 
         static bool AreColorsSimilar(System.Drawing.Color color1, System.Drawing.Color color2, double threshold)
@@ -528,14 +531,14 @@ namespace CheckPhoto
                             //TODO controllare se si può eseguire il controllo su immagini ridotte
                             double similarity2 = GetPhotoSimilarity1(b2Check, bLibrary);
 
-                            log.Debug($"{f2Check} s1<{similarity1}> s2<{similarity2}>");
+                            log.Debug($"{f2Check} s1<{Math.Round(similarity1,2)}> s2<{Math.Round(similarity2, 2)}>");
 
                             similarity = (similarity1 + similarity2) / 2;
 
                         }
                     }
 
-                    log.Info($"{f2Check} is {similarity}% similar to {fLibrary}");
+                    log.Info($"{f2Check} is {Math.Round(similarity, 2)}% similar to {fLibrary}");
 
                     //IsFileLocked(new FileInfo(f2Check));
 
@@ -601,15 +604,17 @@ namespace CheckPhoto
                     for (double i = 1; i < duration2Check.TotalMilliseconds; i = i + tDivided)
                     {
 
+                        //TODO cambiare le dimesioni in modo che siano in proporzione con le originali, possono così essere diverse se non sono le stesse o girate in modo diverso
                         Bitmap b2Check = FFMpeg.Snapshot(f2Check, new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP), TimeSpan.FromMilliseconds(i));
 
                         Bitmap bExisting = FFMpeg.Snapshot(fLibrary, new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP), TimeSpan.FromMilliseconds(i));
 
-                        double similarityTemp = GetPhotoSimilarity(b2Check, bExisting);
-
+                        double similarityTemp1 = GetPhotoSimilarity(b2Check, bExisting);
+                        double similarityTemp2 = GetPhotoSimilarity1(b2Check, bExisting);
+                        double similarityTemp = (similarityTemp1+ similarityTemp2)/2;
                         similarity = similarity + similarityTemp;
 
-                        log.Info($"{f2Check} is {similarityTemp}% similar to {fLibrary} at millisecond {i}");
+                        log.Info($"{f2Check} is {Math.Round(similarityTemp,2)}% similar to {fLibrary} at millisecond {Math.Round(i, 3)} with s1<{Math.Round(similarityTemp1,2)}> and s2<{Math.Round(similarityTemp2,2)}>");
 
                         //FFMpeg.Snapshot(f2Check, System.IO.Path.Combine(AssemblyDirectory, "" + j + ".png"), new System.Drawing.Size(DIM_BITMAP, DIM_BITMAP), TimeSpan.FromMilliseconds(i));
                         //j++;
@@ -617,7 +622,7 @@ namespace CheckPhoto
 
                     similarity = similarity / n;
 
-                    log.Info($"{f2Check} is {similarity}% similar to {fLibrary}");
+                    log.Info($"{f2Check} is {Math.Round(similarity,2)}% similar to {fLibrary}");
 
                     if (similarity < lowerLimit && skipControlBecouseDifferent)
                     {
