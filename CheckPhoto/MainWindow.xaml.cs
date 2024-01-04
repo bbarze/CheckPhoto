@@ -165,6 +165,50 @@ namespace CheckPhoto
             return similarity;
         }
 
+        /// <summary>
+        /// Calculate the Similarity between two images
+        /// </summary>
+        /// <param name="img1"></param>
+        /// <param name="img2"></param>
+        /// <returns></returns>
+        private static double GetPhotoSimilarity1(Bitmap img1, Bitmap img2)
+        {
+            double countOK = 0;
+            double countKO = 0;
+            int treshold = 10;
+
+            if (img1.Width == img2.Width && img1.Height == img2.Height)
+            {
+                for (int i = 0; i < img1.Width; i++)
+                {
+                    for (int j = 0; j < img1.Height; j++)
+                    {
+                        System.Drawing.Color c1 = img1.GetPixel(i, j);
+                        System.Drawing.Color c2 = img2.GetPixel(i, j);
+                        if (AreColorsSimilar(c1, c2, treshold))
+                        {
+                            countOK++;
+                        }
+                        else
+                        {
+                            countKO++;
+                        }
+                    }
+                }
+            }
+            return 100*(countOK / (countOK + countKO));
+        }
+
+        static bool AreColorsSimilar(System.Drawing.Color color1, System.Drawing.Color color2, double threshold)
+        {
+            int deltaR = Math.Abs(color1.R - color2.R);
+            int deltaG = Math.Abs(color1.G - color2.G);
+            int deltaB = Math.Abs(color1.B - color2.B);
+            int deltaA = Math.Abs(color1.A - color2.A);
+
+            return deltaR <= threshold && deltaG <= threshold && deltaB <= threshold && deltaA <= threshold;
+        }
+
         private static long GetFileSize(String fileName)
         {
             FileInfo fi = new FileInfo(fileName);
@@ -454,6 +498,7 @@ namespace CheckPhoto
             out double similarity)
         {
             similarity = 0;
+            
 
             try
             {
@@ -478,7 +523,15 @@ namespace CheckPhoto
                     {
                         using (Bitmap bLibrary = new Bitmap(fLibrary))
                         {
-                            similarity = GetPhotoSimilarity(b2Check, bLibrary);
+                            double similarity1 = GetPhotoSimilarity(b2Check, bLibrary);
+
+                            //TODO controllare se si può eseguire il controllo su immagini ridotte
+                            double similarity2 = GetPhotoSimilarity1(b2Check, bLibrary);
+
+                            log.Debug($"{f2Check} s1<{similarity1}> s2<{similarity2}>");
+
+                            similarity = (similarity1 + similarity2) / 2;
+
                         }
                     }
 
