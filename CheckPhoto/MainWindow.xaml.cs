@@ -481,6 +481,36 @@ namespace CheckPhoto
             });
         }
 
+        private static bool GetDateTimeTaken(string imagePath, out DateTime DateTimeTaken)
+        {
+            try
+            {
+                using (System.Drawing.Image image = System.Drawing.Image.FromFile(imagePath))
+                {
+                    foreach (PropertyItem property in image.PropertyItems)
+                    {
+                        // PropertyTagDateTime is 0x0132 in hexadecimal
+                        if (property.Id == 0x0132)
+                        {
+                            string dateTimeString = Encoding.UTF8.GetString(property.Value).Trim('\0');
+                            if (DateTime.TryParseExact(dateTimeString, "yyyy:MM:dd HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out DateTime dateTimeTaken))
+                            {
+                                log.Info($"{imagePath}->dt: {dateTimeTaken}");
+                                DateTimeTaken = dateTimeTaken;
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+            }
+            DateTimeTaken = DateTime.Now;
+            return false;
+        }
+
         /// <summary>
         /// Calculate the similarity of two files (photos and/or videos). 
         /// If needed will be showed as popup a CompareWindows
@@ -502,7 +532,6 @@ namespace CheckPhoto
         {
             similarity = 0;
             
-
             try
             {
 
@@ -522,19 +551,34 @@ namespace CheckPhoto
 
                 if (IsPhoto(f2Check))
                 {
-                    using (Bitmap b2Check = new Bitmap(f2Check))
+                    if (GetDateTimeTaken(f2Check, out DateTime dt2Check) && GetDateTimeTaken(fLibrary, out DateTime dtLibrary))
                     {
-                        using (Bitmap bLibrary = new Bitmap(fLibrary))
+                        if (dt2Check != dtLibrary) { 
+                            similarity = -1;
+                            log.Info($"Two DIFFERENT dtTaken available {dt2Check} ----- {dtLibrary}");
+                        }
+                        else
                         {
-                            double similarity1 = GetPhotoSimilarity(b2Check, bLibrary);
+                            log.Info($"Two EQUALS dtTaken available {dt2Check} ----- {dtLibrary}");
+                        }
+                    }
 
-                            //TODO controllare se si può eseguire il controllo su immagini ridotte
-                            double similarity2 = GetPhotoSimilarity1(b2Check, bLibrary);
+                    if (similarity >= 0)
+                    {
+                        using (Bitmap b2Check = new Bitmap(f2Check))
+                        {
+                            using (Bitmap bLibrary = new Bitmap(fLibrary))
+                            {
+                                double similarity1 = GetPhotoSimilarity(b2Check, bLibrary);
 
-                            log.Debug($"{f2Check} s1<{Math.Round(similarity1,2)}> s2<{Math.Round(similarity2, 2)}>");
+                                //TODO controllare se si può eseguire il controllo su immagini ridotte
+                                double similarity2 = GetPhotoSimilarity1(b2Check, bLibrary);
 
-                            similarity = (similarity1 + similarity2) / 2;
+                                log.Debug($"{f2Check} s1<{Math.Round(similarity1, 2)}> s2<{Math.Round(similarity2, 2)}>");
 
+                                similarity = (similarity1 + similarity2) / 2;
+
+                            }
                         }
                     }
 
@@ -553,6 +597,7 @@ namespace CheckPhoto
                     {
                         if (!skipControlAlways)
                         {
+                            //TODO add here dt taken
                             if (!MineDialogResult(f2Check, fLibrary, similarity, true, false))
                             {
                                 return false;
