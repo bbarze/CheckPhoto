@@ -551,7 +551,10 @@ namespace CheckPhoto
 
                 if (IsPhoto(f2Check))
                 {
-                    if (GetDateTimeTaken(f2Check, out DateTime dt2Check) && GetDateTimeTaken(fLibrary, out DateTime dtLibrary))
+                    bool IsDt2Check = GetDateTimeTaken(f2Check, out DateTime dt2Check);
+                    bool IsDtLibrary = GetDateTimeTaken(fLibrary, out DateTime dtLibrary);
+
+                    if (IsDt2Check && IsDtLibrary)
                     {
                         if (dt2Check != dtLibrary) { 
                             similarity = -1;
@@ -598,7 +601,7 @@ namespace CheckPhoto
                         if (!skipControlAlways)
                         {
                             //TODO add here dt taken
-                            if (!MineDialogResult(f2Check, fLibrary, similarity, true, false))
+                            if (!MineDialogResult(f2Check, fLibrary, similarity, true, false, dt2Check, dtLibrary))
                             {
                                 return false;
                             }
@@ -720,13 +723,13 @@ namespace CheckPhoto
         /// <param name="isImg">Indicate if files are images otherwise are video</param>
         /// <param name="warn">Indicate a warn on the calculation of similarity</param>
         /// <returns>True if the two file are the same else false</returns>
-        public static bool MineDialogResult(String f2Check, String fExisting, double similarity, bool isImg, bool warn)
+        public static bool MineDialogResult(String f2Check, String fExisting, double similarity, bool isImg, bool warn, DateTime? dt2Check = null, DateTime? dtExisting = null)
         {
             try
             {
                 return Application.Current.Dispatcher.Invoke(() =>
                 {
-                    CompareWindow cw = new CompareWindow(f2Check, fExisting, similarity, isImg, warn);
+                    CompareWindow cw = new CompareWindow(f2Check, fExisting, similarity, isImg, warn, dt2Check, dtExisting);
                     cw.ShowDialog();
                     if (!cw.DialogResult.HasValue || !cw.DialogResult.Value)
                     {

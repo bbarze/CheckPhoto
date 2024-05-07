@@ -34,22 +34,24 @@
                         <TextBlock Text="NEW:     " HorizontalAlignment="Center" FontSize="22"/>
                         <TextBlock x:Name="tbNewSize" FontSize="22"/>
                     </WrapPanel>
-                    <Image Width="300" x:Name="iNew" HorizontalAlignment="Center"/>
-                    <MediaElement Name="mePlayerN" LoadedBehavior="Manual" Stretch="None" />
+                    <Image x:Name="iNew" HorizontalAlignment="Center" MaxWidth="400" MaxHeight="900"/>
+                    <MediaElement Name="mePlayerN" LoadedBehavior="Manual" MaxWidth="500" MaxHeight="900" />
                     <ProgressBar Name="pbVolumeN" Width="100" Height="15" Maximum="1" Value="{Binding ElementName=mePlayerN, Path=Volume}" MouseWheel="pbVolumeN_MouseWheel" Margin="8" />
-                    <TextBox x:Name="tbNewPath" FontSize="15"/>
+                    <TextBox x:Name="tbNewPath" FontSize="15" TextWrapping="Wrap" MaxWidth="500"/>
                     <TextBlock x:Name="tbNewInfo" FontSize="15"/>
+                    <TextBlock x:Name="tbNewDt" FontSize="15"/>
                 </StackPanel>
                 <StackPanel Margin="10">
                     <WrapPanel>
                         <TextBlock Text="OLD:     " HorizontalAlignment="Center" FontSize="22"/>
                         <TextBlock x:Name="tbOldSize" FontSize="22"/>
                     </WrapPanel>
-                    <Image Width="300" x:Name="iOld" HorizontalAlignment="Center"/>
-                    <MediaElement Name="mePlayerO" LoadedBehavior="Manual" Stretch="None" />
+                    <Image x:Name="iOld" HorizontalAlignment="Center" MaxWidth="400" MaxHeight="900"/>
+                    <MediaElement Name="mePlayerO" LoadedBehavior="Manual" MaxWidth="500"  MaxHeight="900" />
                     <ProgressBar Name="pbVolumeO" Width="100" Height="15" Maximum="1" Value="{Binding ElementName=mePlayerO, Path=Volume}" MouseWheel="pbVolumeO_MouseWheel" Margin="8" />
-                    <TextBox x:Name="tbOldPath" FontSize="15"/>
+                    <TextBox x:Name="tbOldPath" FontSize="15" TextWrapping="Wrap" MaxWidth="500"/>
                     <TextBlock x:Name="tbOldInfo" FontSize="15"/>
+                    <TextBlock x:Name="tbOldDt" FontSize="15"/>
                 </StackPanel>
             </WrapPanel>
 

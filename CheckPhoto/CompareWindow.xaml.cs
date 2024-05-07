@@ -55,7 +55,7 @@ namespace CheckPhoto
         /// </summary>
         DispatcherTimer _timer = new DispatcherTimer();
 
-        public CompareWindow(String newFileName, String oldFileName, double similarity, bool isImg, bool warn)
+        public CompareWindow(String newFileName, String oldFileName, double similarity, bool isImg, bool warn, DateTime? dt2Check = null, DateTime? dtExisting = null)
         {
             InitializeComponent();
 
@@ -89,6 +89,7 @@ namespace CheckPhoto
                         float vRes = img.VerticalResolution;
                         float hRes = img.HorizontalResolution;
                         tbNewInfo.Text = $"{height}x{width} ({vRes}x{hRes})";
+                        tbNewDt.Text = dt2Check.ToString(); 
                     }
                     using (var img = System.Drawing.Image.FromFile(oldFileName))
                     {
@@ -97,6 +98,7 @@ namespace CheckPhoto
                         float vRes = img.VerticalResolution;
                         float hRes = img.HorizontalResolution;
                         tbOldInfo.Text = $"{height}x{width} ({vRes}x{hRes})";
+                        tbOldDt.Text = dtExisting.ToString();
                     }
                 }
                 else
